@@ -2,6 +2,9 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import base64
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import sqlite3
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
