@@ -13,7 +13,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor.execute("PRAGMA journal_mode=WAL;")
         cursor.close()
 
-db = SQLAlchemy()
+db = SQLAlchemy(session_options={"expire_on_commit": True})
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
