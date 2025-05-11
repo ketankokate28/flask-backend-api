@@ -96,6 +96,7 @@ def create_suspect():
 @suspect_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_suspects():
+    db.session.expire_all()
     suspect_id = request.args.get('id')
     if suspect_id:
         s = Suspect.query.get(suspect_id)

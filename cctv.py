@@ -14,6 +14,7 @@ def parse_date(date_str):
 @cctv_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_cctvs():
+    db.session.expire_all()
     all_ctvs = CCTV.query.all()
     return jsonify([{
         'id': c.id,
