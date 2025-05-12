@@ -18,3 +18,5 @@ def seed_permissions():
 
 if __name__ == '__main__':
     seed_permissions()
+
+## to add permissions in DB run: python run_seed_permissions.py

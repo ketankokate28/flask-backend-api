@@ -1,0 +1,58 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# SQLite DB files
+*.sqlite3
+*.db
+
+# Flask-Migrate folders
+migrations/
+instance/
+
+# Uploaded files (images, media, etc.)
+uploads/
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# Logs
+*.log
+
+# IDE settings
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python environment files
+*.env
+.env.*
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Coverage reports
+coverage.xml
+*.cover
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
