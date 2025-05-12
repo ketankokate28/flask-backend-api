@@ -12,3 +12,10 @@ flask db upgrade
 
 python run_seed_permissions.py
 python seed_roles.py     
+
+************ Clean git cache*****
+git rm -r --cached .
+git add .
+git commit -m "Fix: stop tracking ignored files"
+
+**********************************
