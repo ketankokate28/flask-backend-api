@@ -172,3 +172,26 @@ class RolePermission(db.Model):
     __tablename__ = 'role_permissions'
     role_id = db.Column(db.String(36), db.ForeignKey('roles.id'), primary_key=True)
     permission_value = db.Column(db.String(50), db.ForeignKey('permissions.value'), primary_key=True)
+
+class Members(db.Model):
+    __tablename__ = 'members'
+
+    member_id = db.Column(db.Integer, primary_key=True)
+    first_name = db.Column(db.String(100), nullable=False)
+    last_name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100))
+    phone_number = db.Column(db.String(20))
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    update_at= db.Column(db.DateTime, default=datetime.utcnow)
+    def serialize(self):
+        return {
+            'member_id': self.member_id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'email': self.email,
+            'phone_number': self.phone_number,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'update_at': self.update_at.isoformat() if self.update_at else None,
+        }

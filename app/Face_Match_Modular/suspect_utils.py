@@ -1,6 +1,7 @@
-# suspect_utils_sqlalchemy.py
+# suspect_utils_sqlalchemy_refactored.py
 """
-Revised suspect_utils using SQLAlchemy ORM and handling Base64-encoded image BLOBs.
+Refactored suspect utilities using SuspectStore for all CRUD,
+plus caching and embedding via SQLAlchemy ORM.
 """
 import logging
 import base64
@@ -8,105 +9,94 @@ from datetime import datetime
 import numpy as np
 import cv2
 import face_recognition
-from sqlalchemy import create_engine, Column, Integer, String, LargeBinary
-from sqlalchemy.orm import declarative_base, sessionmaker
-from config import suspect_refresh, db_path  # ensure DB_PATH refers to your SQLite file
+
+from config import suspect_refresh
+from db_store.suspect_store import SuspectStore
 
 logger = logging.getLogger(__name__)
-Base = declarative_base()
 
-class Suspect(Base):
-    __tablename__ = 'suspects'
-    suspect_id     = Column(Integer, primary_key=True)
-    first_name     = Column(String, nullable=False)
-    last_name      = Column(String, nullable=False)
-    file_blob      = Column(LargeBinary, nullable=True)  # may contain Base64 str bytes or raw blob
-
-# Create engine and session factory
-engine = create_engine(f"sqlite:///{db_path}?check_same_thread=False", echo=False)
-Session = sessionmaker(bind=engine)
-
-# Global cache
-global_suspects = []
+# Global cache for embeddings
+global_suspects = []  # List of tuples: (id, full_name, embedding)
 _last_refresh = datetime.min
+
 
 def init_suspects():
     """
-    Load all suspects from the database into a global cache, decoding images and computing embeddings.
-    Returns:
-        List of tuples: (suspect_id, full_name, embedding_array)
+    Load all suspects into the cache (decoding images + computing embeddings).
     """
     global global_suspects, _last_refresh
-    global_suspects = _load_from_database()
+    global_suspects = _load_embeddings()
     _last_refresh = datetime.now()
-    logger.info(f"Loaded {len(global_suspects)} suspects via SQLAlchemy and Base64 decode")
+    logger.info(f"Loaded {len(global_suspects)} suspects via SuspectStore")
     return global_suspects
 
 
 def reload_if_needed():
-    """
-    Reload suspects if the configured refresh interval has elapsed.
-    """
+    """Reload cache if refresh interval has passed."""
     global global_suspects, _last_refresh
     if datetime.now() - _last_refresh > suspect_refresh:
-        global_suspects = _load_from_database()
+        global_suspects = _load_embeddings()
         _last_refresh = datetime.now()
-        logger.info(f"Reloaded {len(global_suspects)} suspects via SQLAlchemy and Base64 decode")
+        logger.info(f"Reloaded {len(global_suspects)} suspects via SuspectStore")
     return global_suspects
 
 
-def _load_from_database():
+def _load_embeddings():
     """
-    Internal: Query the suspects table via SQLAlchemy, decode Base64 image data, and compute embeddings.
-    Expects file_blob as Base64-encoded image bytes. Returns list of tuples: (suspect_id, full_name, embedding_array)
+    Internal: fetch suspects via SuspectStore, decode image BLOBs, compute face embeddings.
+    Returns list of (suspect_id, full_name, embedding_array).
     """
-    session = Session()
     suspects_list = []
-    try:
-        # Fetch only suspects with non-null file_blob
-        records = session.query(Suspect).filter(Suspect.file_blob.isnot(None)).all()
-        for rec in records:
-            try:
-                # Determine raw bytes
-                raw = None
-                # If file_blob is text (Base64), decode
-                if isinstance(rec.file_blob, (bytes, bytearray, memoryview)):
-                    # Could be Base64 string bytes or raw image bytes
-                    try:
-                        # Try to interpret as Base64 string
-                        b64_str = rec.file_blob.decode('utf-8')
-                        raw = base64.b64decode(b64_str)
-                    except Exception:
-                        # Fallback: treat file_blob as raw image bytes
-                        raw = bytes(rec.file_blob)
-                elif isinstance(rec.file_blob, str):
-                    raw = base64.b64decode(rec.file_blob)
-                else:
-                    logger.error(f"Unsupported file_blob type for suspect {rec.suspect_id}: {type(rec.file_blob)}")
-                    continue
-
-                # Convert raw image bytes into OpenCV image
-                arr = np.frombuffer(raw, dtype=np.uint8)
-                img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-                if img is None:
-                    logger.error(f"Failed to decode image for suspect {rec.suspect_id}")
-                    continue
-
-                # Compute face embedding
-                rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                encs = face_recognition.face_encodings(rgb)
-                if not encs:
-                    logger.warning(f"No face found in suspect image {rec.suspect_id}")
-                    continue
-                embedding = encs[0]
-
-                full_name = f"{rec.first_name} {rec.last_name}"
-                suspects_list.append((rec.suspect_id, full_name, embedding))
-                logger.debug(f"Loaded suspect {rec.suspect_id}: {full_name}")
-            except Exception as e:
-                logger.error(f"Error processing suspect {rec.suspect_id}: {e}")
-    except Exception as e:
-        logger.error(f"Database query failed: {e}")
-    finally:
-        session.close()
+    # Fetch all suspects
+    records = SuspectStore.get_all()
+    for rec in records:
+        if not rec.file_blob:
+            continue
+        try:
+            # Decode Base64 blob
+            raw = base64.b64decode(rec.file_blob) if isinstance(rec.file_blob, str) else rec.file_blob
+            # Convert bytes -> numpy -> OpenCV image
+            arr = np.frombuffer(raw, dtype=np.uint8)
+            img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+            if img is None:
+                logger.error(f"Failed to decode image for suspect {rec.id}")
+                continue
+            # Face embedding
+            rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            encs = face_recognition.face_encodings(rgb)
+            if not encs:
+                logger.warning(f"No face found in suspect image {rec.id}")
+                continue
+            embedding = encs[0]
+            full_name = f"{rec.first_name} {rec.last_name}"
+            suspects_list.append((rec.id, full_name, embedding))
+            logger.debug(f"Loaded embedding for suspect {rec.id}")
+        except Exception as e:
+            logger.error(f"Error processing suspect {rec.id}: {e}")
     return suspects_list
+
+# CRUD wrappers using SuspectStore
+
+def create_suspect(form_data, image_file):
+    """Create a new suspect record via SuspectStore."""
+    return SuspectStore.create(form_data, image_file)
+
+
+def get_all_suspects():
+    """Return list of all Suspect ORM objects."""
+    return SuspectStore.get_all()
+
+
+def get_suspect_by_id(suspect_id):
+    """Fetch one Suspect by ID."""
+    return SuspectStore.get_by_id(suspect_id)
+
+
+def update_suspect(suspect_id, form_data, image_file=None):
+    """Update an existing suspect."""
+    return SuspectStore.update(suspect_id, form_data, image_file)
+
+
+def delete_suspect(suspect_id):
+    """Delete a suspect by ID."""
+    return SuspectStore.delete(suspect_id)

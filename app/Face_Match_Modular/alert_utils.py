@@ -8,6 +8,7 @@ from config import (
     twilio_sid, twilio_token, twilio_from, twilio_to,
     db_path  
 )
+from db_store import RecipientStore
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,7 @@ def send_email_alert(frame, suspect, distance, cctv_id, suspect_id):
     body = f"Match in {frame}\nSuspect: {suspect}\nDistance: {distance:.3f}\nTime: {event_time.isoformat()}"
 
     try:
+        #recipientDetails= RecipientStore.get_all()
         yag = yagmail.SMTP(e_mail_sender, e_mail_password)
         yag.send(e_mail_receiver, f"🚨 Face Match: {suspect}", body)
         logger.info("Email alert sent")
