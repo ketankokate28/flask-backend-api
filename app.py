@@ -3,8 +3,9 @@ from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from models import db
-import auth, users, cctv, suspect, notification
+import auth, users, cctv, suspect, notification, permission, role
 from flask_migrate import Migrate
+
 #, face_match
 
 # create JWTManager instance and force identity to strings
@@ -44,6 +45,8 @@ def create_app():
     app.register_blueprint(cctv.cctv_bp,       url_prefix='/api/cctv')
     app.register_blueprint(suspect.suspect_bp,       url_prefix='/api/suspect')
     app.register_blueprint(notification.notification_bp,       url_prefix='/api/notification')
+    app.register_blueprint(permission.permission_bp,       url_prefix='/api/permissions')
+    app.register_blueprint(role.role_bp,     url_prefix='/api/roles')
     #app.register_blueprint(face_match.face_match_bp, url_prefix='/api/face-match')
 
     # Create tables if they don't exist
