@@ -10,7 +10,7 @@ model = YOLO(YOLO_MODEL_PATH)
 
 def run_camera_stream(cctv_id, name, stream_url):
     print(f"[START] Camera {cctv_id} ({name})")
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(stream_url)
 
     if not cap.isOpened():
         raise Exception(f"Cannot open stream for {name} ({cctv_id})")
