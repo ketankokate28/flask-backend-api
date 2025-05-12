@@ -9,3 +9,6 @@ pip install Flask-Migrate
 flask db init
 flask db migrate -m "Add jobTitle and other new fields to User"
 flask db upgrade
+
+python run_seed_permissions.py
+python seed_roles.py     

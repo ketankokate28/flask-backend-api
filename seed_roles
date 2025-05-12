@@ -1,0 +1,36 @@
+from your_app import db
+from your_app.models import Role
+from uuid import uuid4
+
+def seed_roles():
+    roles = [
+        {
+            'id': str(uuid4()),
+            'name': 'admin',
+            'description': 'Administrator with full access'
+        },
+        {
+            'id': str(uuid4()),
+            'name': 'user',
+            'description': 'Regular user with limited access'
+        }
+    ]
+
+    for role_data in roles:
+        # Check if the role already exists
+        existing_role = Role.query.filter_by(name=role_data['name']).first()
+        if not existing_role:
+            new_role = Role(
+                id=role_data['id'],
+                name=role_data['name'],
+                description=role_data['description']
+            )
+            db.session.add(new_role)
+
+    db.session.commit()
+    print("Roles seeded successfully.")
+
+if __name__ == '__main__':
+    from your_app import app  # import your Flask app
+    with app.app_context():
+        seed_roles()
