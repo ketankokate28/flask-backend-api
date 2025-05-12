@@ -50,6 +50,7 @@ def register():
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
+    db.session.expire_all()
     data = request.get_json() or {}
     username = data.get('username')
     password = data.get('password')
