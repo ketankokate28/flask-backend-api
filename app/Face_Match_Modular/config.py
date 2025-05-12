@@ -23,7 +23,7 @@ workers          = 4
 
 # Email Alerts
 e_mail_sender    = "bhaleraoprakash100@gmail.com"
-e_mail_password  = "YOUR_APP_PASSWORD"
+e_mail_password  = "qwct xwtz dqel tmkk"
 e_mail_receiver  = "pnmsrwnsh@gmail.com"
 
 # Twilio Alerts

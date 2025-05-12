@@ -13,3 +13,4 @@ def deblur_image(image: np.ndarray) -> np.ndarray:
     # Unsharp mask: combine original and blurred image
     sharpened = cv2.addWeighted(image, 1.5, blurred, -0.5, 0)
     return sharpened
+    
