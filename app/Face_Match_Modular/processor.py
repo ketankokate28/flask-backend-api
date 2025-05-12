@@ -142,10 +142,7 @@ def process_frame(frame_fn: str):
             save_path = os.path.join(out_dir, frame_fn)
             cv2.imwrite(save_path, img)
 
-            # Log to DB & CSV
-            log_to_db(ts, frame_fn, suspect_name, distance)
-            log_to_csv(ts, frame_fn, suspect_name, distance)
-
+           
             # TODO: derive camera_id from frame_fn prefix or metadata
             cctv_id = None
             prefix = frame_fn.split('_', 1)[0]  # e.g., "CAM2"
@@ -156,6 +153,9 @@ def process_frame(frame_fn: str):
                     cctv_id = None
             else:
                 cctv_id = None
+                 # Log to DB & CSV
+            log_to_db(ts, frame_fn, cctv_id, suspect_id,suspect_name, distance)
+            log_to_csv(ts, frame_fn,cctv_id, suspect_id, suspect_name, distance)
 
             # Send alerts
             send_email_alert(frame_fn, suspect_name, distance, cctv_id, suspect_id)
