@@ -1,0 +1,11 @@
+pip show flask
+pip install flask
+pip install flask-migrate
+.\venv\Scripts\Activate.ps1
+flask db init
+flask db migrate -m "initial"
+
+pip install Flask-Migrate
+flask db init
+flask db migrate -m "Add jobTitle and other new fields to User"
+flask db upgrade
