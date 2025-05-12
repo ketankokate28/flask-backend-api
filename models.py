@@ -5,6 +5,7 @@ import base64
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 import sqlite3
+from uuid import uuid4
 
 # @event.listens_for(Engine, "connect")
 # def set_sqlite_pragma(dbapi_connection, connection_record):
@@ -20,6 +21,10 @@ class User(db.Model):
     username     = db.Column(db.String(80), unique=True, nullable=False)
     password_hash= db.Column(db.String(128), nullable=False)
     role         = db.Column(db.String(20), nullable=False)
+    jobTitle         = db.Column(db.String(50), nullable=True)
+    email = db.Column(db.String(50), nullable=True)
+    fullName= db.Column(db.String(50), nullable=True)
+    phoneNumber= db.Column(db.String(20), nullable=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -151,4 +156,26 @@ class Notification(db.Model):
             'status': self.status,
             'last_error': self.last_error
         }
-      
+
+class Permission(db.Model):
+    __tablename__ = 'permissions'
+    value = db.Column(db.String(50), primary_key=True)  # e.g., "users.view"
+    name = db.Column(db.String(100), nullable=False)    # e.g., "View Users"
+    group_name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+
+class Role(db.Model):
+    __tablename__ = 'roles'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
+    name = db.Column(db.String(200), nullable=False, unique=True)
+    description = db.Column(db.Text)
+    permissions = db.relationship(
+        'Permission',
+        secondary='role_permissions',
+        backref='roles'
+    )
+
+class RolePermission(db.Model):
+    __tablename__ = 'role_permissions'
+    role_id = db.Column(db.String(36), db.ForeignKey('roles.id'), primary_key=True)
+    permission_value = db.Column(db.String(50), db.ForeignKey('permissions.value'), primary_key=True)

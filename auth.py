@@ -1,7 +1,7 @@
 # auth.py
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, get_jwt_identity, get_jwt, jwt_required,create_refresh_token
-from models import db, User
+from models import db, User, Role, Permission
 from datetime import timedelta
 
 auth_bp = Blueprint('auth', __name__)
@@ -11,6 +11,10 @@ def register():
     data = request.get_json() or {}
     username = data.get('username')
     password = data.get('password')
+    jobTitle = data.get('jobTitle')
+    email = data.get('email')
+    fullName = data.get('fullName')
+    phoneNumber = data.get('phoneNumber')
     role     = data.get('role', 'admin')
 
     if not username or not password:
@@ -19,7 +23,7 @@ def register():
     if User.query.filter_by(username=username).first():
         return jsonify(msg='User already exists'), 400
 
-    user = User(username=username, role=role)
+    user = User(username=username, role=role, jobTitle=jobTitle,email=email,fullName=fullName,phoneNumber=phoneNumber)
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
@@ -54,22 +58,26 @@ def login():
     if not user or not user.check_password(password):
         return jsonify(msg='Bad username or password'), 401
 
-    # Create access and ID tokens
+    # Get role and associated permissions
+    role = Role.query.filter_by(name=user.role).first()
+    permission_values = [p.value for p in role.permissions] if role else []
+
+    # JWT claims
+    claims = {
+        'role': user.role,
+        'permission': permission_values,
+        'scope': 'read write',
+        'name': user.username,
+        'fullname': user.fullName,
+        'email': user.email,
+        'jobtitle': user.jobTitle,
+        'phone_number': user.phoneNumber
+    }
     access_token_expires = timedelta(minutes=120)
     id_token_expires = timedelta(hours=2)
-
-    access_token = create_access_token(
-        identity=str(user.id),
-        expires_delta=access_token_expires,
-        additional_claims={'role': user.role, 'scope': 'read write', 'name':user.username}
-    )
-
-    id_token = create_access_token(
-        identity=str(user.id),
-        expires_delta=id_token_expires,
-        additional_claims={'role': user.role, 'scope': 'read write', 'id_token': True,'name':user.username}
-    )
-
+    # Create access and ID tokens
+    access_token = create_access_token(identity=str(user.id),expires_delta=access_token_expires, additional_claims=claims)
+    id_token     = create_access_token(identity=str(user.id),expires_delta=id_token_expires, additional_claims={**claims, 'id_token': True})
     refresh_token = create_refresh_token(identity=str(user.id))
 
     return jsonify({

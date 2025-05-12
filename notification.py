@@ -8,7 +8,7 @@ notification_bp = Blueprint('notification', __name__)
 @notification_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_notifications():
-    db.session.expire_all()
+    #db.session.expire_all()
     notification_id = request.args.get('id')
 
     if notification_id:
