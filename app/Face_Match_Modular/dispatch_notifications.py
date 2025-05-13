@@ -4,8 +4,9 @@ Job B: Send out all pending notifications.
 Runs every two minutes.
 """
 from datetime import datetime, timezone
-from models import db, Notification
-from notification_service import notify_on_match
+from db_models import db, Notification
+from notification_service import dispatch_notification
+from app_scheduler import create_app
 
 
 def dispatch():
@@ -19,8 +20,8 @@ def dispatch():
             # Dispatch alerts for this notification
             # Assuming notif.message encodes necessary info
             # Here we extract suspect_id, but you can include more fields in Notification
-            notify_on_match(
-                frame=None,
+            dispatch_notification(
+                notif=None,
                 suspect_name=f"Suspect {notif.suspect_id}",
                 distance=0.0,
                 cctv_id=None,
@@ -35,6 +36,6 @@ def dispatch():
         db.session.commit()
 
 if __name__ == '__main__':
-    print("Dispatching pending notifications...")
-    dispatch()
-    print("Done.")
+    app = create_app()
+    with app.app_context():
+        dispatch()

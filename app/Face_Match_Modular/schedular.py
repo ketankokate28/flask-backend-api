@@ -9,6 +9,9 @@ import logging
 import os
 from record_notifications import record_new
 from dispatch_notifications import dispatch
+from flask import Flask
+from db_models import db
+from app_scheduler import create_app
 
 # Optional: configure logging to file
 generic_log = os.path.join(os.path.dirname(__file__), 'scheduler.log')
@@ -57,4 +60,7 @@ def run_scheduler():
         logger.info("Scheduler stopped by user")
 
 if __name__ == '__main__':
-    run_scheduler()
+    app = create_app()
+    with app.app_context():
+        db.create_all()
+        run_scheduler()
