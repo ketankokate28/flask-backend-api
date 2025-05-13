@@ -137,7 +137,7 @@ def process_frame(frame_fn: str):
             cv2.circle(img, (cx, cy), rad, (0,255,0), 2)
             cv2.putText(img, ts.strftime("%Y-%m-%d %H:%M:%S"), (10,25),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
-            out_dir = os.path.join(matched_dir, suspect_name)
+            out_dir = os.path.join(matched_dir, str(suspect_id))
             os.makedirs(out_dir, exist_ok=True)
             save_path = os.path.join(out_dir, frame_fn)
             cv2.imwrite(save_path, img)
@@ -158,7 +158,7 @@ def process_frame(frame_fn: str):
             log_to_csv(ts, frame_fn,cctv_id, suspect_id, suspect_name, distance)
 
             # Send alerts
-            send_email_alert(frame_fn, suspect_name, distance, cctv_id, suspect_id)
+            #send_email_alert(frame_fn, suspect_name, distance, cctv_id, suspect_id)
             #send_sms_alert(frame_fn, suspect_name, camera_id, suspect_id)
             #send_call_alert(frame_fn, suspect_name, camera_id, suspect_id)
 
