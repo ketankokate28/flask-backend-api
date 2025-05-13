@@ -18,6 +18,8 @@ suspect_refresh  = timedelta(hours=500)
 check_interval   = 5  # seconds
 model_type       = "hog"
 
+# Throttle window (only one alert per suspect per window)
+ALERT_THROTTLE_WINDOW = timedelta(minutes=2)
 # Concurrency
 workers          = 4
 
