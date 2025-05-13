@@ -24,14 +24,14 @@ class User(db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
-    # notify_email   = db.Column(db.Boolean, default=False)
-    # notify_sms     = db.Column(db.Boolean, default=False)
-    # notify_call    = db.Column(db.Boolean, default=False)
-    # priority_email = db.Column(db.Integer, default=0)  # lower = higher priority
-    # priority_sms   = db.Column(db.Integer, default=0)
-    # priority_call  = db.Column(db.Integer, default=0)
-    # is_active      = db.Column(db.Boolean, default=True)
-    # created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    notify_email   = db.Column(db.Boolean, default=True)
+    notify_sms     = db.Column(db.Boolean, default=True)
+    notify_call    = db.Column(db.Boolean, default=True)
+    priority_email = db.Column(db.Integer, default=0)  # lower = higher priority
+    priority_sms   = db.Column(db.Integer, default=0)
+    priority_call  = db.Column(db.Integer, default=0)
+    is_active      = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=True)
 
 class CCTV(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -180,3 +180,31 @@ class RolePermission(db.Model):
     __tablename__ = 'role_permissions'
     role_id = db.Column(db.String(36), db.ForeignKey('roles.id'), primary_key=True)
     permission_value = db.Column(db.String(50), db.ForeignKey('permissions.value'), primary_key=True)
+
+class Matchfacelog(db.Model):
+    __tablename__ = 'Matchfacelogs'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    capture_time = db.Column(db.Text, nullable=False)
+    frame = db.Column(db.Text, nullable=False)
+    cctv_id = db.Column(db.Integer, db.ForeignKey('cctv.id'), nullable=False)
+    suspect_id = db.Column(db.Integer, db.ForeignKey('suspects.suspect_id'), nullable=True)
+    suspect = db.Column(db.Text, nullable=True)
+    distance = db.Column(db.Float, nullable=False)
+    created_date = db.Column(db.Text, nullable=False)
+
+    # Optional relationships
+    cctv = db.relationship('CCTV', backref=db.backref('match_logs', lazy=True))
+    suspect_ref = db.relationship('Suspect', backref=db.backref('match_logs', lazy=True), foreign_keys=[suspect_id])
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'capture_time': self.capture_time,
+            'frame': self.frame,
+            'cctv_id': self.cctv_id,
+            'suspect_id': self.suspect_id,
+            'suspect': self.suspect,
+            'distance': self.distance,
+            'created_date': self.created_date
+        }
