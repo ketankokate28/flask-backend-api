@@ -3,7 +3,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from models import db
-import auth, users, cctv, suspect, notification, permission, role
+import auth, users, cctv, suspect, notification, permission, role, matchfacelogs
 from flask_migrate import Migrate
 
 #, face_match
@@ -47,6 +47,7 @@ def create_app():
     app.register_blueprint(notification.notification_bp,       url_prefix='/api/notification')
     app.register_blueprint(permission.permission_bp,       url_prefix='/api/permissions')
     app.register_blueprint(role.role_bp,     url_prefix='/api/roles')
+    app.register_blueprint(matchfacelogs.matchfacelogs_bp,     url_prefix='/api/matchfacelogs')
     #app.register_blueprint(face_match.face_match_bp, url_prefix='/api/face-match')
 
     # Create tables if they don't exist
