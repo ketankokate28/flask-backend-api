@@ -5,7 +5,7 @@ conn = sqlite3.connect(db_path)
 try:
     # Add the column with a default date if it doesn't already exist
     conn.execute("""
-        drop table MatchFacelogs
+        drop table Notifications
     """)
     conn.commit()
     print("Added created_date column.")

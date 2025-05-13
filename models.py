@@ -24,14 +24,14 @@ class User(db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
-    notify_email   = db.Column(db.Boolean, default=False)
-    notify_sms     = db.Column(db.Boolean, default=False)
-    notify_call    = db.Column(db.Boolean, default=False)
-    priority_email = db.Column(db.Integer, default=0)  # lower = higher priority
-    priority_sms   = db.Column(db.Integer, default=0)
-    priority_call  = db.Column(db.Integer, default=0)
-    is_active      = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    # notify_email   = db.Column(db.Boolean, default=False)
+    # notify_sms     = db.Column(db.Boolean, default=False)
+    # notify_call    = db.Column(db.Boolean, default=False)
+    # priority_email = db.Column(db.Integer, default=0)  # lower = higher priority
+    # priority_sms   = db.Column(db.Integer, default=0)
+    # priority_call  = db.Column(db.Integer, default=0)
+    # is_active      = db.Column(db.Boolean, default=True)
+    # created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
 class CCTV(db.Model):
     id = db.Column(db.Integer, primary_key=True)
