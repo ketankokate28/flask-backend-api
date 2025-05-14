@@ -21,7 +21,8 @@ def dispatch():
             # Assuming notif.message encodes necessary info
             # Here we extract suspect_id, but you can include more fields in Notification
             dispatch_notification(
-                notif=None,
+                notification  = notif,
+                frame=None,
                 suspect_name=f"Suspect {notif.suspect_id}",
                 distance=0.0,
                 cctv_id=None,

@@ -80,7 +80,7 @@ class NotificationRecipient(db.Model):
         ForeignKey('notifications.id', ondelete='CASCADE'),
         nullable=False
     )
-    recipient_id     = Column(Integer, ForeignKey('recipients.id'), nullable=False)
+    recipient_id     = Column(Integer, ForeignKey('user.id'), nullable=False)
     channel          = Column(String(20), nullable=False)  # 'EMAIL','SMS','VOICE'
     delivery_status  = Column(String(20))                  # 'SENT','FAILED', etc.
     delivery_time    = Column(DateTime)
