@@ -75,6 +75,7 @@ def create_suspect():
         modified_by=data.get('created_by'),
         file_path=file_path,
         file_blob=file_blob,
+        description=data.get('description'),
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -131,7 +132,7 @@ def update_suspect(suspect_id):
         'height_cm', 'weight_kg', 'shoulder_width_cm', 'torso_height_cm',
         'leg_length_cm', 'shoe_size', 'hair_color', 'eye_color', 'aliases',
         'face_embedding', 'fingerprint_template', 'iris_code', 'gait_signature',
-        'modified_by'
+        'modified_by','description'
     ]:
         if field in data:
             setattr(suspect, field, data.get(field))
