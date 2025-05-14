@@ -1,0 +1,13 @@
+<!-- src/app/components/system-control/system-control.component.html -->
+<div class="system-control">
+  <p>System is currently: <strong>{{ running ? 'RUNNING' : 'STOPPED' }}</strong></p>
+
+  <!-- only admins get the button -->
+  <button
+    *ngIf="isAdmin"
+    class="btn btn-primary"
+    [disabled]="loading"
+    (click)="toggle()">
+    {{ running ? 'Stop System' : 'Start System' }}
+  </button>
+</div>
