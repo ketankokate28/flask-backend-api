@@ -5,7 +5,6 @@ from models import db, User, Role, Permission
 from datetime import timedelta
 
 auth_bp = Blueprint('auth', __name__)
-
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json() or {}
@@ -15,7 +14,16 @@ def register():
     email = data.get('email')
     fullName = data.get('fullName')
     phoneNumber = data.get('phoneNumber')
-    role     = data.get('role', 'admin')
+    role = data.get('role', 'admin')
+
+    # New fields
+    notify_email = data.get('notify_email', True)  # Default to True
+    notify_sms = data.get('notify_sms', True)      # Default to True
+    notify_call = data.get('notify_call', True)    # Default to True
+    priority_email = data.get('priority_email', 0) # Default to 0
+    priority_sms = data.get('priority_sms', 0)     # Default to 0
+    priority_call = data.get('priority_call', 0)   # Default to 0
+    is_active = data.get('is_active', True)         # Default to True
 
     if not username or not password:
         return jsonify(msg='username & password required'), 400
@@ -23,12 +31,39 @@ def register():
     if User.query.filter_by(username=username).first():
         return jsonify(msg='User already exists'), 400
 
-    user = User(username=username, role=role, jobTitle=jobTitle,email=email,fullName=fullName,phoneNumber=phoneNumber)
+    user = User(
+        username=username,
+        role=role,
+        jobTitle=jobTitle,
+        email=email,
+        fullName=fullName,
+        phoneNumber=phoneNumber,
+        notify_email=notify_email,
+        notify_sms=notify_sms,
+        notify_call=notify_call,
+        priority_email=priority_email,
+        priority_sms=priority_sms,
+        priority_call=priority_call,
+        is_active=is_active
+    )
+    
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
 
-    return jsonify(id=user.id, username=user.username, role=user.role), 201
+    return jsonify(
+        id=user.id,
+        username=user.username,
+        role=user.role,
+        notify_email=user.notify_email,
+        notify_sms=user.notify_sms,
+        notify_call=user.notify_call,
+        priority_email=user.priority_email,
+        priority_sms=user.priority_sms,
+        priority_call=user.priority_call,
+        is_active=user.is_active
+    ), 201
+
 
 # @auth_bp.route('/login', methods=['POST'])
 # def login():

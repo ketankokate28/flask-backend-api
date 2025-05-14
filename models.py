@@ -32,6 +32,7 @@ class User(db.Model):
     priority_call  = db.Column(db.Integer, default=0)
     is_active      = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=True)
+    notifications = db.relationship('NotificationRecipient', back_populates='recipient')
 
 class CCTV(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -91,6 +92,7 @@ class Suspect(db.Model):
     created_by = db.Column(db.String(100))
     modified_by = db.Column(db.String(100))
     file_path = db.Column(db.String(200))
+    description = db.Column(db.String(2000))
     file_blob = db.Column(db.String)  # Changed to store Base64-encoded image data
 
     def serialize(self, include_blob=False):
@@ -114,7 +116,8 @@ class Suspect(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'created_by': self.created_by,
             'modified_by': self.modified_by,
-            'file_path': self.file_path
+            'file_path': self.file_path,
+            'description': self.description
         }
 
         if include_blob:
@@ -126,37 +129,6 @@ class Suspect(db.Model):
                 print(f">>> No blob for suspect {self.suspect_id}")
 
         return data
-
-
-class Notification(db.Model):
-    __tablename__ = 'notifications'
-
-    notification_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    channel = db.Column(db.String(10), nullable=False)  # 'email', 'sms', 'call', 'push'
-    cctv_id = db.Column(db.Integer, db.ForeignKey('cctv.id'), nullable=True)
-    match_id = db.Column(db.Integer, nullable=True)  # You can set up ForeignKey if MatchLog exists
-    payload = db.Column(db.Text, nullable=False)
-    recipient = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    last_attempt_at = db.Column(db.DateTime, nullable=True)
-    attempt_count = db.Column(db.Integer, default=0, nullable=False)
-    status = db.Column(db.String(10), default='pending', nullable=False)  # 'pending', 'sent', 'failed'
-    last_error = db.Column(db.Text)
-
-    def serialize(self):
-        return {
-            'notification_id': self.notification_id,
-            'channel': self.channel,
-            'cctv_id': self.cctv_id,
-            'match_id': self.match_id,
-            'payload': self.payload,
-            'recipient': self.recipient,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_attempt_at': self.last_attempt_at.isoformat() if self.last_attempt_at else None,
-            'attempt_count': self.attempt_count,
-            'status': self.status,
-            'last_error': self.last_error
-        }
 
 class Permission(db.Model):
     __tablename__ = 'permissions'
@@ -207,4 +179,53 @@ class Matchfacelog(db.Model):
             'suspect': self.suspect,
             'distance': self.distance,
             'created_date': self.created_date
+        }
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+
+    id = db.Column(db.Integer, primary_key=True)
+    cctv_id = db.Column(db.Integer)
+    suspect_id = db.Column(db.Integer)
+    event_time = db.Column(db.DateTime, default=datetime.utcnow)
+    notification_type = db.Column(db.String(20))  # e.g. 'MATCH'
+    message = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    recipients = db.relationship(
+        'NotificationRecipient', back_populates='notification', cascade='all, delete-orphan'
+    )
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'cctv_id': self.cctv_id,
+            'suspect_id': self.suspect_id,
+            'event_time': self.event_time.isoformat() if self.event_time else None,
+            'notification_type': self.notification_type,
+            'message': self.message,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'recipients': [r.serialize() for r in self.recipients]
+        }
+
+class NotificationRecipient(db.Model):
+    __tablename__ = 'notification_recipients'
+
+    id = db.Column(db.Integer, primary_key=True)
+    notification_id = db.Column(db.Integer, db.ForeignKey('notifications.id', ondelete='CASCADE'), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # Corrected reference to 'user.id'
+    channel = db.Column(db.String(20), nullable=False)  # 'EMAIL','SMS','VOICE'
+    delivery_status = db.Column(db.String(20))  # 'SENT','FAILED', etc.
+    delivery_time = db.Column(db.DateTime)
+
+    notification = db.relationship('Notification', back_populates='recipients')
+    recipient = db.relationship('User', back_populates='notifications')  # Corrected relationship to 'User'
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'notification_id': self.notification_id,
+            'recipient_id': self.recipient_id,
+            'channel': self.channel,
+            'delivery_status': self.delivery_status,
+            'delivery_time': self.delivery_time.isoformat() if self.delivery_time else None
         }
