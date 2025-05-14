@@ -18,7 +18,7 @@ def record_new():
     # Fetch distinct suspect_ids from match logs in the window
     rows = (
         db.session.query(distinct(MatchFaceLog.suspect_id))
-        .filter(MatchFaceLog.capture_time >= cutoff)
+        #.filter(MatchFaceLog.capture_time >= cutoff)
         .all()
     )
     suspect_ids = [r[0] for r in rows]

@@ -24,10 +24,7 @@ def parse_date(date_str):
 @suspect_bp.route('/', methods=['POST'])
 @jwt_required()
 def create_suspect():
-    print(">>> DEBUG: create_suspect called")
-    print(">>> Form Data:", request.form.to_dict())
-    print(">>> Files:", request.files)
-
+    db.session.expire_all()
     data = request.form
     image = request.files.get('image')
 
