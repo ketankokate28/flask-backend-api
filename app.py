@@ -3,6 +3,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from models import db
+import police_station
 import auth, users, cctv, suspect, notification, permission, role, matchfacelogs
 from flask_migrate import Migrate
 
@@ -48,6 +49,7 @@ def create_app():
     app.register_blueprint(permission.permission_bp,       url_prefix='/api/permissions')
     app.register_blueprint(role.role_bp,     url_prefix='/api/roles')
     app.register_blueprint(matchfacelogs.matchfacelogs_bp,     url_prefix='/api/matchfacelogs')
+    app.register_blueprint(police_station.police_station_bp,     url_prefix='/api/policestation')
     #app.register_blueprint(face_match.face_match_bp, url_prefix='/api/face-match')
 
     # Create tables if they don't exist

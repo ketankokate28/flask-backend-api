@@ -229,3 +229,25 @@ class NotificationRecipient(db.Model):
             'delivery_status': self.delivery_status,
             'delivery_time': self.delivery_time.isoformat() if self.delivery_time else None
         }
+    
+class PoliceStation(db.Model):
+    __tablename__ = 'police_stations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    country = db.Column(db.String(50), default="India")
+    state = db.Column(db.String(50), nullable=False)
+    taluka = db.Column(db.String(50), nullable=False)
+    pincode = db.Column(db.String(10), nullable=False)
+    full_address = db.Column(db.String(255), nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+
+    # Foreign key to User table (Station House Officer)
+    station_house_officer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    station_house_officer = db.relationship('User', foreign_keys=[station_house_officer_id])
+
+    # Audit fields
+    created_by = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_by = db.Column(db.Integer, nullable=True)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
