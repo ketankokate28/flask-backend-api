@@ -11,7 +11,7 @@ class Config:
     SQLALCHEMY_DATABASE_URI = f"sqlite:///{DB_PATH}"
     ##SQLALCHEMY_DATABASE_URI = 'sqlite:///C:/Ketan/R&D/flask-backend-api/database/face_match.db?check_same_thread=False'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    CORS_ORIGINS = ['http://localhost:4200']
+    CORS_ORIGINS = ['http://localhost:4200',"http://localhost:8080"]
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # Adjust if config.py is deeper in project
 
     matched_dir = os.path.join(BASE_DIR, 'matched_faces')
