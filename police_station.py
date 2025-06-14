@@ -21,6 +21,7 @@ def get_police_stations():
         'country': ps.country,
         'state': ps.state,
         'taluka': ps.taluka,
+        'district': ps.district,
         'pincode': ps.pincode,
         'fullAddress': ps.full_address,
         'isActive': ps.is_active,
@@ -44,9 +45,10 @@ def create_police_station():
         country=data.get('country', 'India'),
         state=data.get('state'),
         taluka=data.get('taluka'),
+        district= data.get('district'),
         pincode=data.get('pincode'),
         full_address=data.get('fullAddress'),
-        is_active=data.get('isActive', True),
+        is_active=str(data.get('isActive', True)).lower() in ('true', '1', 'yes'),
         station_house_officer_id=data.get('stationHouseOfficerId'),
         created_by=current_user_id,
         created_at=get_current_utc_time(),
@@ -69,10 +71,11 @@ def update_police_station(station_id):
     ps.name = data.get('name', ps.name)
     ps.country = data.get('country', ps.country)
     ps.state = data.get('state', ps.state)
+    ps.district= data.get('district', ps.district)
     ps.taluka = data.get('taluka', ps.taluka)
     ps.pincode = data.get('pincode', ps.pincode)
     ps.full_address = data.get('fullAddress', ps.full_address)
-    ps.is_active = data.get('isActive', ps.is_active)
+    ps.is_active = bool(str(data.get('isActive', ps.is_active)).lower() in ('true', '1', 'yes'))
     ps.station_house_officer_id = data.get('stationHouseOfficerId', ps.station_house_officer_id)
     ps.updated_by = current_user_id
     ps.updated_at = get_current_utc_time()

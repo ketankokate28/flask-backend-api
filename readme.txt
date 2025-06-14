@@ -5,6 +5,8 @@ pip install flask-migrate
 flask db init
 flask db migrate -m "initial"
 
+pip install flask_cors
+pip install flask_jwt_extended
 
 pip install Flask-Migrate
 flask db init

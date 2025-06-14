@@ -238,6 +238,7 @@ class PoliceStation(db.Model):
     country = db.Column(db.String(50), default="India")
     state = db.Column(db.String(50), nullable=False)
     taluka = db.Column(db.String(50), nullable=False)
+    district = db.Column(db.String(50), nullable=True)
     pincode = db.Column(db.String(10), nullable=False)
     full_address = db.Column(db.String(255), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
