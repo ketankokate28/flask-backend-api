@@ -21,7 +21,7 @@ def user_identity_lookup(identity):
 def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
-    app.config['UPLOAD_FOLDER'] = 'suspects'
+    # app.config['UPLOAD_FOLDER'] = app.config['UPLOAD_FOLDER']
 
     # Enable CORS for Angular UI, including Authorization header
     CORS(

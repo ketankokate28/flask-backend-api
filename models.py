@@ -1,4 +1,4 @@
-from datetime import datetime,timezone
+from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import base64
@@ -11,28 +11,28 @@ db = SQLAlchemy(session_options={"expire_on_commit": True})
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username     = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash= db.Column(db.String(128), nullable=False)
-    role         = db.Column(db.String(20), nullable=False)
-    jobTitle         = db.Column(db.String(50), nullable=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+    jobTitle = db.Column(db.String(50), nullable=True)
     email = db.Column(db.String(50), nullable=True)
-    fullName= db.Column(db.String(50), nullable=True)
-    phoneNumber= db.Column(db.String(20), nullable=True)
+    fullName = db.Column(db.String(50), nullable=True)
+    phoneNumber = db.Column(db.String(20), nullable=True)
+    notify_email = db.Column(db.Boolean, default=True)
+    notify_sms = db.Column(db.Boolean, default=True)
+    notify_call = db.Column(db.Boolean, default=True)
+    priority_email = db.Column(db.Integer, default=0)
+    priority_sms = db.Column(db.Integer, default=0)
+    priority_call = db.Column(db.Integer, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=True)
+    notifications = db.relationship('NotificationRecipient', back_populates='recipient')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
-    notify_email   = db.Column(db.Boolean, default=True)
-    notify_sms     = db.Column(db.Boolean, default=True)
-    notify_call    = db.Column(db.Boolean, default=True)
-    priority_email = db.Column(db.Integer, default=0)  # lower = higher priority
-    priority_sms   = db.Column(db.Integer, default=0)
-    priority_call  = db.Column(db.Integer, default=0)
-    is_active      = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=True)
-    notifications = db.relationship('NotificationRecipient', back_populates='recipient')
 
 class CCTV(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -48,8 +48,8 @@ class CCTV(db.Model):
     resolution = db.Column(db.String(10), nullable=True)
     recording_status = db.Column(db.String(10), nullable=True)
     storage_duration_days = db.Column(db.Integer, nullable=True)
-    installation_date = db.Column(db.Date, nullable=True)
-    last_maintenance_date = db.Column(db.Date, nullable=True)
+    installation_date = db.Column(db.DateTime, nullable=True)
+    last_maintenance_date = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(20), nullable=True)
     last_active_timestamp = db.Column(db.DateTime, nullable=True)
     error_count = db.Column(db.Integer, nullable=True)
@@ -87,13 +87,23 @@ class Suspect(db.Model):
     iris_code = db.Column(db.LargeBinary)
     gait_signature = db.Column(db.LargeBinary)
     aliases = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     created_by = db.Column(db.String(100))
     modified_by = db.Column(db.String(100))
     file_path = db.Column(db.String(200))
     description = db.Column(db.String(2000))
     file_blob = db.Column(db.String)  # Changed to store Base64-encoded image data
+    file_path1 = db.Column(db.String(200))
+    file_blob1 = db.Column(db.String)
+    file_path2 = db.Column(db.String(200))
+    file_blob2 = db.Column(db.String)
+    file_path3 = db.Column(db.String(200))
+    file_blob3 = db.Column(db.String)
+    file_path4 = db.Column(db.String(200))
+    file_blob4 = db.Column(db.String)
+    file_path5 = db.Column(db.String(200))
+    file_blob5 = db.Column(db.String)
 
     def serialize(self, include_blob=False):
         data = {
@@ -116,56 +126,48 @@ class Suspect(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'created_by': self.created_by,
             'modified_by': self.modified_by,
-            'file_path': self.file_path,
+            'file_path1': self.file_path1,
+            'file_path2': self.file_path2,
+            'file_path3': self.file_path3,
+            'file_path4': self.file_path4,
+            'file_path5': self.file_path5,
             'description': self.description
         }
 
+
         if include_blob:
-            print(f">>> DEBUG: Serializing blob for suspect {self.suspect_id}")
-            if self.file_blob:
-                data['file_blob_base64'] = self.file_blob  # Already base64 string in DB
-                print(f">>> Base64 present for suspect {self.suspect_id}")
-            else:
-                print(f">>> No blob for suspect {self.suspect_id}")
+            try:
+                if self.face_embedding:
+                    data['face_embedding'] = base64.b64encode(self.face_embedding).decode('utf-8')
+                if self.fingerprint_template:
+                    data['fingerprint_template'] = base64.b64encode(self.fingerprint_template).decode('utf-8')
+                if self.iris_code:
+                    data['iris_code'] = base64.b64encode(self.iris_code).decode('utf-8')
+                if self.gait_signature:
+                    data['gait_signature'] = base64.b64encode(self.gait_signature).decode('utf-8')
+            except Exception as e:
+                print(f"[ERROR] Binary encoding failed: {e}")
+
+            for i in range(1, 6):
+                blob_attr = f'file_blob{i if i > 1 else ""}'
+                if getattr(self, blob_attr):
+                    data[f'file_blob{i}_base64'] = getattr(self, blob_attr)
+                else:
+                    data[f'file_blob{i}_base64'] = None
 
         return data
 
-class Permission(db.Model):
-    __tablename__ = 'permissions'
-    value = db.Column(db.String(50), primary_key=True)  # e.g., "users.view"
-    name = db.Column(db.String(100), nullable=False)    # e.g., "View Users"
-    group_name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-
-class Role(db.Model):
-    __tablename__ = 'roles'
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
-    name = db.Column(db.String(200), nullable=False, unique=True)
-    description = db.Column(db.Text)
-    permissions = db.relationship(
-        'Permission',
-        secondary='role_permissions',
-        backref='roles'
-    )
-
-class RolePermission(db.Model):
-    __tablename__ = 'role_permissions'
-    role_id = db.Column(db.String(36), db.ForeignKey('roles.id'), primary_key=True)
-    permission_value = db.Column(db.String(50), db.ForeignKey('permissions.value'), primary_key=True)
-
 class Matchfacelog(db.Model):
     __tablename__ = 'Matchfacelogs'
-
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    capture_time = db.Column(db.Text, nullable=False)
+    capture_time = db.Column(db.DateTime, nullable=False)
     frame = db.Column(db.Text, nullable=False)
     cctv_id = db.Column(db.Integer, db.ForeignKey('cctv.id'), nullable=False)
     suspect_id = db.Column(db.Integer, db.ForeignKey('suspects.suspect_id'), nullable=True)
     suspect = db.Column(db.Text, nullable=True)
     distance = db.Column(db.Float, nullable=False)
-    created_date = db.Column(db.Text, nullable=False)
+    created_date = db.Column(db.DateTime, nullable=False)
 
-    # Optional relationships
     cctv = db.relationship('CCTV', backref=db.backref('match_logs', lazy=True))
     suspect_ref = db.relationship('Suspect', backref=db.backref('match_logs', lazy=True), foreign_keys=[suspect_id])
 
@@ -180,20 +182,18 @@ class Matchfacelog(db.Model):
             'distance': self.distance,
             'created_date': self.created_date
         }
+
 class Notification(db.Model):
     __tablename__ = 'notifications'
-
     id = db.Column(db.Integer, primary_key=True)
     cctv_id = db.Column(db.Integer)
     suspect_id = db.Column(db.Integer)
-    event_time = db.Column(db.DateTime, default=datetime.utcnow)
-    notification_type = db.Column(db.String(20))  # e.g. 'MATCH'
+    event_time = db.Column(db.DateTime, default=datetime.now)
+    notification_type = db.Column(db.String(20))
     message = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
-    recipients = db.relationship(
-        'NotificationRecipient', back_populates='notification', cascade='all, delete-orphan'
-    )
+    recipients = db.relationship('NotificationRecipient', back_populates='notification', cascade='all, delete-orphan')
 
     def serialize(self):
         return {
@@ -209,16 +209,15 @@ class Notification(db.Model):
 
 class NotificationRecipient(db.Model):
     __tablename__ = 'notification_recipients'
-
     id = db.Column(db.Integer, primary_key=True)
     notification_id = db.Column(db.Integer, db.ForeignKey('notifications.id', ondelete='CASCADE'), nullable=False)
-    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # Corrected reference to 'user.id'
-    channel = db.Column(db.String(20), nullable=False)  # 'EMAIL','SMS','VOICE'
-    delivery_status = db.Column(db.String(20))  # 'SENT','FAILED', etc.
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    channel = db.Column(db.String(20), nullable=False)
+    delivery_status = db.Column(db.String(20))
     delivery_time = db.Column(db.DateTime)
 
     notification = db.relationship('Notification', back_populates='recipients')
-    recipient = db.relationship('User', back_populates='notifications')  # Corrected relationship to 'User'
+    recipient = db.relationship('User', back_populates='notifications')
 
     def serialize(self):
         return {
@@ -229,10 +228,28 @@ class NotificationRecipient(db.Model):
             'delivery_status': self.delivery_status,
             'delivery_time': self.delivery_time.isoformat() if self.delivery_time else None
         }
-    
+
+class Permission(db.Model):
+    __tablename__ = 'permissions'
+    value = db.Column(db.String(50), primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    group_name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+
+class Role(db.Model):
+    __tablename__ = 'roles'
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
+    name = db.Column(db.String(200), nullable=False, unique=True)
+    description = db.Column(db.Text)
+    permissions = db.relationship('Permission', secondary='role_permissions', backref='roles')
+
+class RolePermission(db.Model):
+    __tablename__ = 'role_permissions'
+    role_id = db.Column(db.String(36), db.ForeignKey('roles.id'), primary_key=True)
+    permission_value = db.Column(db.String(50), db.ForeignKey('permissions.value'), primary_key=True)
+
 class PoliceStation(db.Model):
     __tablename__ = 'police_stations'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     country = db.Column(db.String(50), default="India")
@@ -242,13 +259,9 @@ class PoliceStation(db.Model):
     pincode = db.Column(db.String(10), nullable=False)
     full_address = db.Column(db.String(255), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
-
-    # Foreign key to User table (Station House Officer)
     station_house_officer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     station_house_officer = db.relationship('User', foreign_keys=[station_house_officer_id])
-
-    # Audit fields
     created_by = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=datetime.now)
     updated_by = db.Column(db.Integer, nullable=True)
-    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)

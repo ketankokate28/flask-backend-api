@@ -16,3 +16,4 @@ class Config:
 
     matched_dir = os.path.join(BASE_DIR, 'matched_faces')
     suspect_dir = os.path.join(BASE_DIR, 'suspects')
+    UPLOAD_FOLDER = suspect_dir
