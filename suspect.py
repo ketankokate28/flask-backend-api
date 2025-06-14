@@ -119,7 +119,8 @@ def update_suspect(suspect_id):
 
     if image and allowed_file(image.filename):
         filename = secure_filename(image.filename)
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        file_path = os.path.join(upload_folder, filename)
 
         # Read first, then save
         image_data = image.read()
@@ -157,9 +158,9 @@ def delete_suspect(suspect_id):
 
     # if suspect.file_path and os.path.exists(suspect.file_path):
     #     os.remove(suspect.file_path)
-
-    if os.path.exists(os.path.join(UPLOAD_FOLDER, str(suspect_id))):
-        shutil.rmtree(os.path.join(UPLOAD_FOLDER, str(suspect_id)))
+    upload_folder = current_app.config['UPLOAD_FOLDER']
+    if os.path.exists(os.path.join(upload_folder, str(suspect_id))):
+        shutil.rmtree(os.path.join(upload_folder, str(suspect_id)))
 
     db.session.delete(suspect)
     db.session.commit()
