@@ -149,7 +149,7 @@ class Suspect(db.Model):
                 print(f"[ERROR] Binary encoding failed: {e}")
 
             for i in range(1, 6):
-                blob_attr = f'file_blob{i if i > 1 else ""}'
+                blob_attr = f'file_blob{i if i > 0 else ""}'
                 if getattr(self, blob_attr):
                     data[f'file_blob{i}_base64'] = getattr(self, blob_attr)
                 else:
