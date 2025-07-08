@@ -39,7 +39,8 @@ def get_suspect_summary():
             Matchfacelog.suspect_id,
             func.max(Matchfacelog.capture_time).label("latest_capture"),
             func.count(Matchfacelog.id).label("match_count"),
-            Matchfacelog.suspect
+            #Matchfacelog.suspect
+            func.max(Matchfacelog.suspect).label("suspect")
         )
         .filter(Matchfacelog.suspect_id.isnot(None))
         .group_by(Matchfacelog.suspect_id)

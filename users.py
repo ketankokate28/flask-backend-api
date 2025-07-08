@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, logging, request, jsonify
 from flask_jwt_extended import jwt_required
 from models import db, User
 
@@ -24,7 +24,8 @@ def get_users():
             'priority_sms': u.priority_sms,
             'priority_call': u.priority_call,
             'is_active': u.is_active,
-            'created_at': u.created_at
+            'created_at': u.created_at,
+            'subnodeId': u.subnode_id
         }
         for u in all_users
     ])
@@ -51,7 +52,8 @@ def get_user(user_id):
         'priority_sms': user.priority_sms,
         'priority_call': user.priority_call,
         'is_active': user.is_active,
-        'created_at': user.created_at
+        'created_at': user.created_at,
+        'subnodeId': user.subnode_id
     }), 200
 
 @users_bp.route('/', methods=['POST'])
@@ -81,7 +83,8 @@ def create_user():
         priority_email=data.get('priority_email', 0), # Default to 0
         priority_sms=data.get('priority_sms', 0),     # Default to 0
         priority_call=data.get('priority_call', 0),   # Default to 0
-        is_active=data.get('is_active', True)          # Default to True
+        is_active=data.get('is_active', True),          # Default to True
+        subnode_id=data.get('subnodeId')
     )
     user.set_password(password)
     db.session.add(user)
@@ -102,7 +105,8 @@ def create_user():
         'priority_sms': user.priority_sms,
         'priority_call': user.priority_call,
         'is_active': user.is_active,
-        'created_at': user.created_at
+        'created_at': user.created_at,
+        'subnodeId': user.subnode_id
     }), 201
 
 @users_bp.route('/<int:user_id>', methods=['PUT'])
@@ -116,9 +120,10 @@ def update_user(user_id):
     user.fullName = data.get('fullName', user.fullName)
     user.phoneNumber = data.get('phoneNumber', user.phoneNumber)
     user.jobTitle = data.get('jobTitle', user.jobTitle)
+    user.subnode_id = data.get('subnodeId', user.subnode_id)
     
     # Update roles
-    role_value = data.get('role')
+    role_value = data.get('roles')
     if isinstance(role_value, list):
         user.role = role_value[0] if role_value else user.role
     else:
@@ -154,7 +159,8 @@ def update_user(user_id):
         'priority_sms': user.priority_sms,
         'priority_call': user.priority_call,
         'is_active': user.is_active,
-        'created_at': user.created_at
+        'created_at': user.created_at,
+        'subnodeId': user.subnode_id
     }), 200
 
 @users_bp.route('/<int:user_id>', methods=['DELETE'])
