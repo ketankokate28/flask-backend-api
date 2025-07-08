@@ -70,6 +70,14 @@ def create_user():
     if User.query.filter_by(username=username).first():
         return jsonify(msg='User already exists'), 400
 
+
+    subnode_id = data.get('subnodeId')
+    try:
+        subnode_id = int(subnode_id)
+    except (TypeError, ValueError):
+        subnode_id = None
+    if subnode_id == 0:
+        subnode_id = None
     user = User(
         username=username,
         role=role,
@@ -84,7 +92,7 @@ def create_user():
         priority_sms=data.get('priority_sms', 0),     # Default to 0
         priority_call=data.get('priority_call', 0),   # Default to 0
         is_active=data.get('is_active', True),          # Default to True
-        subnode_id=data.get('subnodeId')
+        subnode_id=subnode_id
     )
     user.set_password(password)
     db.session.add(user)
@@ -120,8 +128,16 @@ def update_user(user_id):
     user.fullName = data.get('fullName', user.fullName)
     user.phoneNumber = data.get('phoneNumber', user.phoneNumber)
     user.jobTitle = data.get('jobTitle', user.jobTitle)
-    user.subnode_id = data.get('subnodeId', user.subnode_id)
-    
+    subnode_id = data.get('subnodeId')
+    try:
+        subnode_id = int(subnode_id)
+    except (TypeError, ValueError):
+        subnode_id = user.subnode_id  # fallback to existing
+    if subnode_id == 0:
+        subnode_id = None
+
+    user.subnode_id = subnode_id
+   
     # Update roles
     role_value = data.get('roles')
     if isinstance(role_value, list):
