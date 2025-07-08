@@ -55,7 +55,7 @@ def create_suspect():
         shoulder_width_cm=data.get('shoulder_width_cm'),
         torso_height_cm=data.get('torso_height_cm'),
         leg_length_cm=data.get('leg_length_cm'),
-        shoe_size=data.get('shoe_size'),
+        distribution_to=data.get('distribution_to') or 'P',
         hair_color=data.get('hair_color'),
         eye_color=data.get('eye_color'),
         face_embedding=data.get('face_embedding'),
@@ -131,7 +131,7 @@ def update_suspect(suspect_id):
     for field in [
         'first_name', 'last_name', 'gender', 'nationality',
         'height_cm', 'weight_kg', 'shoulder_width_cm', 'torso_height_cm',
-        'leg_length_cm', 'shoe_size', 'hair_color', 'eye_color', 'aliases',
+        'leg_length_cm', 'distribution_to', 'hair_color', 'eye_color', 'aliases',
         'face_embedding', 'fingerprint_template', 'iris_code', 'gait_signature',
         'modified_by','description'
     ]:

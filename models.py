@@ -85,7 +85,8 @@ class Suspect(db.Model):
     shoulder_width_cm = db.Column(db.Float)
     torso_height_cm = db.Column(db.Float)
     leg_length_cm = db.Column(db.Float)
-    shoe_size = db.Column(db.Float)
+    distribution_to = db.Column(db.String(1), nullable=True, default='P') # 'C', 'S', 'D', 'P'
+    #shoe_size = db.Column(db.Float)
     hair_color = db.Column(db.String(50))
     eye_color = db.Column(db.String(50))
     face_embedding = db.Column(db.LargeBinary)
@@ -126,7 +127,7 @@ class Suspect(db.Model):
             'shoulder_width_cm': self.shoulder_width_cm,
             'torso_height_cm': self.torso_height_cm,
             'leg_length_cm': self.leg_length_cm,
-            'shoe_size': self.shoe_size,
+            'distribution_to': self.distribution_to,
             'hair_color': self.hair_color,
             'eye_color': self.eye_color,
             'aliases': self.aliases,
