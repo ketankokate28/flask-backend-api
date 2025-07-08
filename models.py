@@ -12,7 +12,7 @@ db = SQLAlchemy(session_options={"expire_on_commit": True})
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    password_hash = db.Column(db.String(512), nullable=False)
     role = db.Column(db.String(20), nullable=False)
     jobTitle = db.Column(db.String(50), nullable=True)
     email = db.Column(db.String(50), nullable=True)
@@ -26,7 +26,9 @@ class User(db.Model):
     priority_call = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=True)
+    subnode_id = db.Column(db.Integer, db.ForeignKey('subnodes.id', ondelete='SET NULL'), nullable=True)
     notifications = db.relationship('NotificationRecipient', back_populates='recipient')
+    subnode = db.relationship('Subnode', backref='users', foreign_keys=[subnode_id])
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -58,17 +60,21 @@ class CCTV(db.Model):
     face_crop_enabled = db.Column(db.Boolean, nullable=True)
     frame_match_interval = db.Column(db.Integer, nullable=True)
     alert_group_id = db.Column(db.Integer, nullable=True)
-    site_id = db.Column(db.Integer, nullable=True)
+    ##site_id = db.Column(db.Integer, nullable=True)
+    site_id = db.Column(db.Integer, db.ForeignKey('sites.id', ondelete='CASCADE'), nullable=False)
     zone = db.Column(db.String(50), nullable=True)
     assigned_guard = db.Column(db.Integer, nullable=True)
     camera_model = db.Column(db.String(100), nullable=True)
     video_download_location = db.Column(db.String(255), nullable=True)
     stream_url = db.Column(db.String(500), nullable=True)
 
+    site = db.relationship('Site', back_populates='cctvs')
+
 class Suspect(db.Model):
     __tablename__ = 'suspects'
 
     suspect_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    subnode_id = db.Column(db.Integer, db.ForeignKey('subnodes.id'), nullable=True)
     first_name = db.Column(db.String(100), nullable=False)
     last_name = db.Column(db.String(100), nullable=False)
     date_of_birth = db.Column(db.Date, nullable=False)
@@ -104,10 +110,12 @@ class Suspect(db.Model):
     file_blob4 = db.Column(db.String)
     file_path5 = db.Column(db.String(200))
     file_blob5 = db.Column(db.String)
+    subnode = db.relationship('Subnode', backref='suspects')
 
     def serialize(self, include_blob=False):
         data = {
             'suspect_id': self.suspect_id,
+            'subnode_id': self.subnode_id,
             'first_name': self.first_name,
             'last_name': self.last_name,
             'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
@@ -265,3 +273,116 @@ class PoliceStation(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_by = db.Column(db.Integer, nullable=True)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+class Tenant(db.Model):
+    __tablename__ = 'tenants'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    nodes = db.relationship('Node', backref='tenant', lazy=True)
+
+
+class Node(db.Model):
+    __tablename__ = 'nodes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    type = db.Column(db.String(50), nullable=True)
+    parent_node_id = db.Column(db.Integer, db.ForeignKey('nodes.id', ondelete='SET NULL'), nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    parent_node = db.relationship('Node', remote_side=[id], backref='child_nodes')
+    subnodes = db.relationship('Subnode', backref='node', lazy=True)
+
+
+class Subnode(db.Model):
+    __tablename__ = 'subnodes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    node_id = db.Column(db.Integer, db.ForeignKey('nodes.id', ondelete='CASCADE'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    country = db.Column(db.String(50), default="India")
+    state = db.Column(db.String(50), nullable=False)
+    district = db.Column(db.String(50), nullable=True)
+    taluka = db.Column(db.String(50), nullable=True)
+    pincode = db.Column(db.String(10), nullable=True)
+    full_address = db.Column(db.String(255), nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    station_house_officer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_by = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_by = db.Column(db.Integer, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    station_house_officer = db.relationship('User', foreign_keys=[station_house_officer_id])
+    sites = db.relationship('Site', backref='subnode', lazy=True)
+
+class Site(db.Model):
+    __tablename__ = 'sites'
+
+    id = db.Column(db.Integer, primary_key=True)
+    subnode_id = db.Column(
+        db.Integer, db.ForeignKey('subnodes.id', ondelete='CASCADE'), nullable=False
+    )
+
+    # DVR / Site metadata
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+
+    # DVR location
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    altitude = db.Column(db.Float, nullable=True)
+    address = db.Column(db.String(255), nullable=True)
+
+    # DVR connection details
+    dvr_ip = db.Column(db.String(45), nullable=True)  # IPv4/IPv6
+    dvr_port = db.Column(db.Integer, default=554)      # Default RTSP port
+    dvr_username = db.Column(db.String(100), nullable=True)
+    dvr_password = db.Column(db.String(100), nullable=True)
+    dvr_rtsp_url = db.Column(db.String(500), nullable=True)  # Full RTSP template if needed
+
+    # DVR model/info
+    dvr_model = db.Column(db.String(100), nullable=True)
+    dvr_vendor = db.Column(db.String(100), nullable=True)
+    dvr_firmware_version = db.Column(db.String(100), nullable=True)
+
+    # Maintenance & status
+    last_maintenance_date = db.Column(db.DateTime, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    # Relationships
+    cctvs = db.relationship('CCTV', back_populates='site', lazy=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "subnode_id": self.subnode_id,
+            "name": self.name,
+            "description": self.description,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "altitude": self.altitude,
+            "address": self.address,
+            "dvr_ip": self.dvr_ip,
+            "dvr_port": self.dvr_port,
+            "dvr_username": self.dvr_username,
+            "dvr_password": self.dvr_password,
+            "dvr_rtsp_url": self.dvr_rtsp_url,
+            "dvr_model": self.dvr_model,
+            "dvr_vendor": self.dvr_vendor,
+            "dvr_firmware_version": self.dvr_firmware_version,
+            "last_maintenance_date": str(self.last_maintenance_date) if self.last_maintenance_date else None,
+            "is_active": self.is_active
+        }

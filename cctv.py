@@ -15,7 +15,13 @@ def parse_date(date_str):
 @jwt_required()
 def get_cctvs():
     db.session.expire_all()
-    all_ctvs = CCTV.query.all()
+    site_id = request.args.get('siteId', type=int)
+
+    query = CCTV.query
+    if site_id is not None:
+        query = query.filter_by(site_id=site_id)
+
+    all_ctvs = query.all()
     return jsonify([{
         'id': c.id,
         'name': c.name,

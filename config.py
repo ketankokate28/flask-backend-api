@@ -8,7 +8,14 @@ class Config:
     DB_PATH ="C:/Users/ketan_kokate/Downloads/FaceONNX-main/FaceONNX-main/netstandard/Examples/Face-Matcher-UI/bin/Debug/net8.0-windows/Database/face_match.db"
     
     ##DB_PATH =os.path.join(BASE_DIR, 'database', 'face_match.db')  # Replace with actual filename
-    SQLALCHEMY_DATABASE_URI = f"sqlite:///{DB_PATH}"
+    ##SQLALCHEMY_DATABASE_URI = f"sqlite:///{DB_PATH}"
+
+    SQLALCHEMY_DATABASE_URI = (
+        "postgresql+psycopg2://neondb_owner:npg_KNZdxz0Rku3O"
+        "@ep-floral-sea-a81vd21b-pooler.eastus2.azure.neon.tech/face_match"
+        "?sslmode=require&channel_binding=require"
+    )
+
     ##SQLALCHEMY_DATABASE_URI = 'sqlite:///C:/Ketan/R&D/flask-backend-api/database/face_match.db?check_same_thread=False'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     CORS_ORIGINS = ['http://localhost:4200',"http://localhost:8080"]

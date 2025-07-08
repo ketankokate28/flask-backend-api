@@ -1,7 +1,7 @@
 # auth.py
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, get_jwt_identity, get_jwt, jwt_required,create_refresh_token
-from models import db, User, Role, Permission
+from models import db, User, Role, Permission, Tenant, Node, Subnode, Site
 from datetime import timedelta
 
 auth_bp = Blueprint('auth', __name__)
@@ -107,7 +107,8 @@ def login():
         'fullname': user.fullName,
         'email': user.email,
         'jobtitle': user.jobTitle,
-        'phone_number': user.phoneNumber
+        'phone_number': user.phoneNumber,
+        'subnode': user.subnode_id
     }
     access_token_expires = timedelta(minutes=120)
     id_token_expires = timedelta(hours=2)
@@ -133,3 +134,64 @@ def me():
     role    = get_jwt().get('role')
     return jsonify(id=user_id, role=role)
     
+@auth_bp.route('/hierarchy', methods=['GET'])
+@jwt_required()
+def get_hierarchy():
+    tenants = Tenant.query.all()
+    result = []
+
+    for tenant in tenants:
+        tenant_data = {
+            "id": tenant.id,
+            "name": tenant.name,
+            "description": tenant.description,
+            "created_at": tenant.created_at.isoformat() if tenant.created_at else None,
+            "nodes": []
+        }
+
+        for node in tenant.nodes:
+            node_data = {
+                "id": node.id,
+                "name": node.name,
+                "type": node.type,
+                "description": node.description,
+                "created_at": node.created_at.isoformat() if node.created_at else None,
+                "subnodes": []
+            }
+
+            for subnode in node.subnodes:
+                subnode_data = {
+                    "id": subnode.id,
+                    "name": subnode.name,
+                    "country": subnode.country,
+                    "state": subnode.state,
+                    "district": subnode.district,
+                    "taluka": subnode.taluka,
+                    "pincode": subnode.pincode,
+                    "full_address": subnode.full_address,
+                    "is_active": subnode.is_active,
+                    "created_at": subnode.created_at.isoformat() if subnode.created_at else None,
+                    "sites": []
+                }
+
+                for site in subnode.sites:
+                    site_data = {
+                        "id": site.id,
+                        "name": site.name,
+                        "description": site.description,
+                        "latitude": site.latitude,
+                        "longitude": site.longitude,
+                        "altitude": site.altitude,
+                        "address": site.address,
+                        "is_active": site.is_active,
+                        "created_at": site.created_at.isoformat() if site.created_at else None,
+                    }
+                    subnode_data["sites"].append(site_data)
+
+                node_data["subnodes"].append(subnode_data)
+
+            tenant_data["nodes"].append(node_data)
+
+        result.append(tenant_data)
+
+    return jsonify(result), 200

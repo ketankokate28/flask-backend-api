@@ -32,26 +32,16 @@ def create_suspect():
     file_path = None
     file_blob = None
 
-    # if image and allowed_file(image.filename):
-    #     filename = secure_filename(image.filename)
-    #     file_path = os.path.join(UPLOAD_FOLDER, filename)
-
-    #     # Read the image content BEFORE saving
-    #     image_data = image.read()
-
-    #     # Convert to base64
-    #     file_blob = base64.b64encode(image_data).decode('utf-8')
-    #     print(">>> file_blob:", file_blob)
-
-    #     # Reset stream and save the file
-    #     image.stream.seek(0)
-    #     image.save(file_path)
-    # else:
-    #     return jsonify({'msg': 'Valid image file is required'}), 400
 
     date_of_birth = parse_date(data.get('date_of_birth'))
     if not date_of_birth:
         return jsonify({'msg': 'Invalid or missing date_of_birth. Expected format: YYYY-MM-DD'}), 400
+
+    subnode_id = data.get('subnode_id')
+    if subnode_id and str(subnode_id).isdigit():
+        subnode_id = int(subnode_id)
+    else:
+        subnode_id = None
 
     suspect = Suspect(
         first_name=data.get('first_name'),
@@ -59,6 +49,7 @@ def create_suspect():
         date_of_birth=date_of_birth,
         gender=data.get('gender'),
         nationality=data.get('nationality'),
+        subnode_id=subnode_id,
         height_cm=data.get('height_cm'),
         weight_kg=data.get('weight_kg'),
         shoulder_width_cm=data.get('shoulder_width_cm'),
@@ -97,14 +88,22 @@ def create_suspect():
 def get_suspects():
     db.session.expire_all()
     suspect_id = request.args.get('id')
+    subnode_id = request.args.get('subnode_id', type=int)
+
     if suspect_id:
         s = Suspect.query.get(suspect_id)
         if not s:
             return jsonify({"msg": "Suspect not found"}), 404
         return jsonify(s.serialize(include_blob=False)), 200
-    else:
-        suspects = Suspect.query.all()
-        return jsonify([s.serialize(include_blob=False) for s in suspects]), 200
+
+    query = Suspect.query
+
+    if subnode_id and subnode_id > 0:
+        query = query.filter_by(subnode_id=subnode_id)
+
+    suspects = query.all()
+
+    return jsonify([s.serialize(include_blob=False) for s in suspects]), 200
 
 # UPDATE Suspect
 @suspect_bp.route('/<int:suspect_id>', methods=['PUT'])
@@ -143,6 +142,11 @@ def update_suspect(suspect_id):
     dob = parse_date(data.get('date_of_birth'))
     if dob:
         suspect.date_of_birth = dob
+
+    subnode_id = data.get('subnode_id')
+    if subnode_id and str(subnode_id).isdigit():
+        subnode_id = int(subnode_id)
+        suspect.subnode_id = subnode_id
 
     suspect.updated_at = datetime.utcnow()
     db.session.commit()
