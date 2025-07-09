@@ -3,8 +3,9 @@ import base64
 import shutil
 from flask import Blueprint, app, logging, request, jsonify,current_app
 from flask_jwt_extended import jwt_required
+from sqlalchemy import and_, or_
 from werkzeug.utils import secure_filename
-from models import db, Suspect
+from models import Node, Site, Subnode, db, Suspect
 from datetime import datetime
 import logging
 from flask import current_app
@@ -216,3 +217,64 @@ def upload_suspect_images(suspect_id):
         return jsonify({'msg': 'Images uploaded/updated successfully'}), 200
     else:
         return jsonify({'msg': 'No valid images provided'}), 400
+    
+@suspect_bp.route('/by-site/<int:site_id>', methods=['GET'])
+@jwt_required()
+def get_suspects_by_site(site_id):
+    db.session.expire_all()
+
+    # Step 1: Site
+    site = Site.query.get(site_id)
+    if not site:
+        return jsonify({"msg": "Site not found"}), 404
+
+    site_subnode_id = site.subnode_id
+
+    # Step 2: District-level node
+    site_subnode = Subnode.query.get(site_subnode_id)
+    if not site_subnode:
+        return jsonify({"msg": "Subnode for site not found"}), 404
+
+    district_node_id = site_subnode.node_id
+
+    # Step 3: Tenant
+    district_node = Node.query.get(district_node_id)
+    if not district_node:
+        return jsonify({"msg": "District node for subnode not found"}), 404
+
+    tenant_id = district_node.tenant_id
+
+    # Step 4a: District-level subnodes
+    district_subnodes = Subnode.query.with_entities(Subnode.id).filter_by(node_id=district_node_id).all()
+    district_subnode_ids = [id for (id,) in district_subnodes]
+
+    # Step 4b: Tenant-level subnodes
+    tenant_nodes = Node.query.with_entities(Node.id).filter_by(tenant_id=tenant_id).all()
+    tenant_node_ids = [id for (id,) in tenant_nodes]
+
+    tenant_subnodes = Subnode.query.with_entities(Subnode.id).filter(Subnode.node_id.in_(tenant_node_ids)).all()
+    tenant_subnode_ids = [id for (id,) in tenant_subnodes]
+
+    # Optional: lastSync param
+    last_sync_str = request.args.get('lastSync')
+    last_sync = None
+    if last_sync_str:
+        try:
+            last_sync = datetime.fromisoformat(last_sync_str)
+        except ValueError:
+            return jsonify({"msg": "Invalid lastSync format. Use ISO8601 (YYYY-MM-DDTHH:MM:SS)"}), 400
+
+    # Build filters
+    filters = or_(
+        and_(Suspect.subnode_id == site_subnode_id, Suspect.distribution_to == 'P'),
+        and_(Suspect.subnode_id.in_(district_subnode_ids), Suspect.distribution_to == 'D'),
+        and_(Suspect.subnode_id.in_(tenant_subnode_ids), Suspect.distribution_to == 'S'),
+    )
+
+    query = Suspect.query.filter(filters)
+    if last_sync:
+        query = query.filter(Suspect.updated_at > last_sync)
+
+    suspects = query.all()
+
+    return jsonify([s.serialize(include_blob=True) for s in suspects]), 200
