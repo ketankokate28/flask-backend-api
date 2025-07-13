@@ -24,16 +24,28 @@ def create_app():
     # app.config['UPLOAD_FOLDER'] = app.config['UPLOAD_FOLDER']
 
     # Enable CORS for Angular UI, including Authorization header
+    # CORS(
+    #     app,
+    #     resources={
+    #         r"/api/*": {
+    #             "origins": app.config['CORS_ORIGINS'],
+    #             "allow_headers": ["Content-Type", "Authorization"],
+    #             "supports_credentials": True
+    #         }
+    #     }
+    # )
+
+
     CORS(
-        app,
-        resources={
-            r"/api/*": {
-                "origins": app.config['CORS_ORIGINS'],
-                "allow_headers": ["Content-Type", "Authorization"],
-                "supports_credentials": True
-            }
+    app,
+    resources={
+        r"/api/*": {
+            "origins": "*",
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
         }
-    )
+    }
+)
 
     # Initialize database and JWT
     db.init_app(app)
