@@ -176,6 +176,7 @@ class Matchfacelog(db.Model):
     suspect = db.Column(db.Text, nullable=True)
     distance = db.Column(db.Float, nullable=False)
     created_date = db.Column(db.DateTime, nullable=False)
+    framebase64 = db.Column(db.Text, nullable=True) 
 
     cctv = db.relationship('CCTV', backref=db.backref('match_logs', lazy=True))
     suspect_ref = db.relationship('Suspect', backref=db.backref('match_logs', lazy=True), foreign_keys=[suspect_id])
@@ -189,7 +190,8 @@ class Matchfacelog(db.Model):
             'suspect_id': self.suspect_id,
             'suspect': self.suspect,
             'distance': self.distance,
-            'created_date': self.created_date
+            'created_date': self.created_date,
+            'framebase64': self.framebase64,
         }
 
 class Notification(db.Model):
