@@ -107,3 +107,36 @@ def get_logs_by_suspect(suspect_id):
         'suspectPhoto': suspect_blob,
         'logs': result_logs
     })
+@matchfacelogs_bp.route('/log/<int:log_id>', methods=['GET'])
+@jwt_required()
+def get_log_by_id(log_id):
+    log = Matchfacelog.query.get(log_id)
+    if not log:
+        return jsonify({"message": f"Log ID {log_id} not found"}), 404
+
+    image_path = os.path.join(
+        Config.matched_dir,
+        str(log.suspect_id),
+        log.frame
+    )
+
+    # Default to DB `framebase64`, otherwise read from disk
+    frame_base64 = log.framebase64
+    if not frame_base64 and os.path.isfile(image_path):
+        try:
+            with open(image_path, 'rb') as f:
+                frame_base64 = base64.b64encode(f.read()).decode('utf-8')
+        except Exception as e:
+            current_app.logger.error(f"Failed to read image {image_path}: {e}")
+
+    return jsonify({
+        "id": log.id,
+        "frame": log.frame,
+        "frameBase64": frame_base64,
+        "imagePath": image_path,
+        "captureTime": log.capture_time.isoformat(),
+        "suspectId": log.suspect_id,
+        "suspect": log.suspect,
+        "cctvId": log.cctv_id,
+        "createdDate": log.created_date.isoformat(),
+    })
