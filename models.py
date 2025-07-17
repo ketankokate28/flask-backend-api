@@ -1,4 +1,6 @@
 from datetime import datetime
+import os
+from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import base64
@@ -6,7 +8,7 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 import sqlite3
 from uuid import uuid4
-
+from storage import get_storage
 db = SQLAlchemy(session_options={"expire_on_commit": True})
 
 class User(db.Model):
@@ -135,16 +137,16 @@ class Suspect(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'created_by': self.created_by,
             'modified_by': self.modified_by,
-            'file_path1': self.file_path1,
-            'file_path2': self.file_path2,
-            'file_path3': self.file_path3,
-            'file_path4': self.file_path4,
-            'file_path5': self.file_path5,
-            'description': self.description
+            'description': self.description,
         }
 
+    # add all file_path fields
+        for i in range(6):
+            path_attr = f'file_path{i}' if i > 0 else 'file_path'
+            data[path_attr] = getattr(self, path_attr)
 
         if include_blob:
+        # encode binary fields
             try:
                 if self.face_embedding:
                     data['face_embedding'] = base64.b64encode(self.face_embedding).decode('utf-8')
@@ -155,16 +157,35 @@ class Suspect(db.Model):
                 if self.gait_signature:
                     data['gait_signature'] = base64.b64encode(self.gait_signature).decode('utf-8')
             except Exception as e:
-                print(f"[ERROR] Binary encoding failed: {e}")
+                current_app.logger.error(f"[ERROR] Binary encoding failed: {e}")
 
-            for i in range(1, 6):
-                blob_attr = f'file_blob{i if i > 0 else ""}'
-                if getattr(self, blob_attr):
-                    data[f'file_blob{i}_base64'] = getattr(self, blob_attr)
-                else:
-                    data[f'file_blob{i}_base64'] = None
+            storage = get_storage()
+
+        # encode image files
+            for i in range(6):
+                path_attr = f'file_path{i}' if i > 0 else 'file_path'
+                blob_attr = f'file_blob{i}' if i > 0 else 'file_blob'
+
+                file_path = getattr(self, path_attr)
+                data[blob_attr] = None
+
+                if file_path:
+                    try:
+                        binary_data = storage.load(file_path)  # ⬅️ Use storage strategy
+                        b64_str = base64.b64encode(binary_data).decode('utf-8')
+                        data[blob_attr] = b64_str
+                        current_app.logger.debug(f"[SERIALIZE] Loaded and encoded {file_path} ({len(binary_data)} bytes)")
+                    except Exception as e:
+                        current_app.logger.warning(f"[SERIALIZE] Could not load image {file_path}: {e}")
+
+        else:
+            # if blobs not included, explicitly set blob fields to None
+            for i in range(6):
+                blob_attr = f'file_blob{i}' if i > 0 else 'file_blob'
+                data[blob_attr] = None
 
         return data
+
 
 class Matchfacelog(db.Model):
     __tablename__ = 'Matchfacelogs'

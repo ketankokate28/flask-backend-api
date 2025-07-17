@@ -21,6 +21,9 @@ class Config:
     CORS_ORIGINS = ['http://localhost:4200',"http://localhost:8080"]
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # Adjust if config.py is deeper in project
 
-    matched_dir = os.path.join(BASE_DIR, 'matched_faces')
+    matched_dir = os.path.join(BASE_DIR, 'matchedsuspect')
     suspect_dir = os.path.join(BASE_DIR, 'suspects')
     UPLOAD_FOLDER = suspect_dir
+    # Default is local file system
+    STORAGE_BACKEND = os.environ.get('STORAGE_BACKEND', 'blob')  # 'local' or 'blob'
+    

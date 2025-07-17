@@ -6,6 +6,7 @@ from models import db
 import police_station
 import auth, users, cctv, suspect, notification, permission, role, matchfacelogs, subnode,site_routes
 from flask_migrate import Migrate
+from notifications.routes import notificationregister_bp
 
 #, face_match
 
@@ -64,6 +65,7 @@ def create_app():
     app.register_blueprint(police_station.police_station_bp,     url_prefix='/api/policestation')
     app.register_blueprint(subnode.subnode_police_station_bp, url_prefix='/api/subnode')
     app.register_blueprint(site_routes.site_bp, url_prefix='/api/sites')
+    app.register_blueprint(notificationregister_bp,       url_prefix='/api/notificationregister')
     #app.register_blueprint(face_match.face_match_bp, url_prefix='/api/face-match')
 
     # Create tables if they don't exist
