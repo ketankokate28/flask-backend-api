@@ -1,16 +1,21 @@
 import os
 import base64
+import random
 import shutil
-from flask import Blueprint, app, logging, request, jsonify,current_app
+import logging
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required
 from sqlalchemy import and_, or_
 from werkzeug.utils import secure_filename
 from models import Node, Site, Subnode, db, Suspect
-from datetime import datetime
-import logging
-from flask import current_app
+from datetime import datetime, timezone
+from dateutil.parser import parse
+from storage import get_storage  # ✅ import storage abstraction
+from sqlalchemy import text
+from dateutil.tz import tzlocal
+
 suspect_bp = Blueprint('suspect', __name__)
-# UPLOAD_FOLDER = current_app.config['UPLOAD_FOLDER']
+
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 
 def allowed_file(filename):
@@ -21,7 +26,10 @@ def parse_date(date_str):
         return datetime.strptime(date_str, '%Y-%m-%d').date()
     except (TypeError, ValueError):
         return None
+
 logging.basicConfig(level=logging.DEBUG)
+
+# CREATE Suspect
 # CREATE Suspect
 @suspect_bp.route('/', methods=['POST'])
 @jwt_required()
@@ -29,10 +37,6 @@ def create_suspect():
     db.session.expire_all()
     data = request.form
     image = request.files.get('image')
-
-    file_path = None
-    file_blob = None
-
 
     date_of_birth = parse_date(data.get('date_of_birth'))
     if not date_of_birth:
@@ -66,8 +70,6 @@ def create_suspect():
         aliases=data.get('aliases'),
         created_by=data.get('created_by'),
         modified_by=data.get('created_by'),
-        file_path=file_path,
-        file_blob=file_blob,
         description=data.get('description'),
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -75,6 +77,19 @@ def create_suspect():
 
     try:
         db.session.add(suspect)
+        db.session.flush()  # flush to get suspect_id for path
+
+        if image and allowed_file(image.filename):
+            filename = secure_filename(image.filename)
+            relative_path = f"suspects/{suspect.suspect_id}/{filename}"
+
+            image_data = image.read()
+            get_storage().save(relative_path, image_data)
+
+            # update suspect with path and blob
+            suspect.file_path = relative_path
+            #suspect.file_blob = base64.b64encode(image_data).decode('utf-8')
+
         db.session.commit()
     except Exception as e:
         print(">>> ERROR inserting suspect:", str(e))
@@ -119,35 +134,33 @@ def update_suspect(suspect_id):
 
     if image and allowed_file(image.filename):
         filename = secure_filename(image.filename)
-        upload_folder = current_app.config['UPLOAD_FOLDER']
-        file_path = os.path.join(upload_folder, filename)
+        relative_path = f"suspects/{suspect_id}/{filename}"
 
-        # Read first, then save
         image_data = image.read()
-        suspect.file_blob = base64.b64encode(image_data).decode('utf-8')
+        #suspect.file_blob = base64.b64encode(image_data).decode('utf-8')
         image.stream.seek(0)
-        image.save(file_path)
 
-        suspect.file_path = file_path
+        get_storage().save(relative_path, image_data)
+
+        suspect.file_path = relative_path
+
     for field in [
         'first_name', 'last_name', 'gender', 'nationality',
         'height_cm', 'weight_kg', 'shoulder_width_cm', 'torso_height_cm',
         'leg_length_cm', 'distribution_to', 'hair_color', 'eye_color', 'aliases',
         'face_embedding', 'fingerprint_template', 'iris_code', 'gait_signature',
-        'modified_by','description'
+        'modified_by', 'description'
     ]:
         if field in data:
             setattr(suspect, field, data.get(field))
 
-    # Parse and update date_of_birth
     dob = parse_date(data.get('date_of_birth'))
     if dob:
         suspect.date_of_birth = dob
 
     subnode_id = data.get('subnode_id')
     if subnode_id and str(subnode_id).isdigit():
-        subnode_id = int(subnode_id)
-        suspect.subnode_id = subnode_id
+        suspect.subnode_id = int(subnode_id)
 
     suspect.updated_at = datetime.utcnow()
     db.session.commit()
@@ -161,11 +174,11 @@ def delete_suspect(suspect_id):
     if not suspect:
         return jsonify({'msg': 'Suspect not found'}), 404
 
-    # if suspect.file_path and os.path.exists(suspect.file_path):
-    #     os.remove(suspect.file_path)
-    upload_folder = current_app.config['UPLOAD_FOLDER']
-    if os.path.exists(os.path.join(upload_folder, str(suspect_id))):
-        shutil.rmtree(os.path.join(upload_folder, str(suspect_id)))
+    if suspect.file_path:
+        try:
+            get_storage().delete(suspect.file_path)
+        except Exception as e:
+            current_app.logger.warning(f"Failed to delete file {suspect.file_path}: {e}")
 
     db.session.delete(suspect)
     db.session.commit()
@@ -184,31 +197,27 @@ def get_suspect_by_id(suspect_id):
 @suspect_bp.route('/<int:suspect_id>/upload-images', methods=['POST'])
 @jwt_required()
 def upload_suspect_images(suspect_id):
-    logging.debug(f"Reached upload-suspect-images endpoint for ID: {suspect_id}")
     suspect = Suspect.query.get(suspect_id)
     if not suspect:
         return jsonify({'msg': 'Suspect not found'}), 404
-    upload_folder = current_app.config['UPLOAD_FOLDER']
-    upload_dir = os.path.join(upload_folder, str(suspect_id))
-    os.makedirs(upload_dir, exist_ok=True)
-    logging.debug(f"Image stored at: {upload_dir}")
+
     updated = False
     for i in range(1, 6):
         image_field = f'image{i}'
-        logging.debug(f"Image range: {i}")       
         image = request.files.get(image_field)
-        logging.debug(f"Image: {image}")
         if image and allowed_file(image.filename):
             filename = secure_filename(image.filename)
-            file_path = os.path.join(upload_dir, f'image{i}_{filename}')
+            random_number = random.randint(100000, 999999) 
+            relative_path = f"{suspect_id}\image{i}_{random_number}_{filename}"
+
             image_data = image.read()
-            file_blob = base64.b64encode(image_data).decode('utf-8')
+            #file_blob = base64.b64encode(image_data).decode('utf-8')
 
-            setattr(suspect, f'file_path{i}', file_path)
-            setattr(suspect, f'file_blob{i}', file_blob)
+            setattr(suspect, f'file_path{i}', relative_path)
+            #setattr(suspect, f'file_blob{i}', file_blob)
 
-            image.stream.seek(0)
-            image.save(file_path)
+            get_storage().save(relative_path, image_data)
+
             updated = True
 
     if updated:
@@ -217,54 +226,40 @@ def upload_suspect_images(suspect_id):
         return jsonify({'msg': 'Images uploaded/updated successfully'}), 200
     else:
         return jsonify({'msg': 'No valid images provided'}), 400
-    
+
 @suspect_bp.route('/by-site/<int:site_id>', methods=['GET'])
 @jwt_required()
 def get_suspects_by_site(site_id):
     db.session.expire_all()
 
-    # Step 1: Site
     site = Site.query.get(site_id)
     if not site:
         return jsonify({"msg": "Site not found"}), 404
 
     site_subnode_id = site.subnode_id
-
-    # Step 2: District-level node
     site_subnode = Subnode.query.get(site_subnode_id)
     if not site_subnode:
         return jsonify({"msg": "Subnode for site not found"}), 404
 
     district_node_id = site_subnode.node_id
-
-    # Step 3: Tenant
     district_node = Node.query.get(district_node_id)
     if not district_node:
         return jsonify({"msg": "District node for subnode not found"}), 404
 
     tenant_id = district_node.tenant_id
 
-    # Step 4a: District-level subnodes
-    district_subnodes = Subnode.query.with_entities(Subnode.id).filter_by(node_id=district_node_id).all()
-    district_subnode_ids = [id for (id,) in district_subnodes]
+    district_subnode_ids = [id for (id,) in Subnode.query.with_entities(Subnode.id).filter_by(node_id=district_node_id).all()]
+    tenant_node_ids = [id for (id,) in Node.query.with_entities(Node.id).filter_by(tenant_id=tenant_id).all()]
+    tenant_subnode_ids = [id for (id,) in Subnode.query.with_entities(Subnode.id).filter(Subnode.node_id.in_(tenant_node_ids)).all()]
 
-    # Step 4b: Tenant-level subnodes
-    tenant_nodes = Node.query.with_entities(Node.id).filter_by(tenant_id=tenant_id).all()
-    tenant_node_ids = [id for (id,) in tenant_nodes]
-
-    tenant_subnodes = Subnode.query.with_entities(Subnode.id).filter(Subnode.node_id.in_(tenant_node_ids)).all()
-    tenant_subnode_ids = [id for (id,) in tenant_subnodes]
-
-    # Optional: lastSync param
     last_sync_str = request.args.get('lastSync')
     last_sync = None
     if last_sync_str:
         try:
             last_sync = datetime.fromisoformat(last_sync_str)
         except ValueError:
-            return jsonify({"msg": "Invalid lastSync format. Use ISO8601 (YYYY-MM-DDTHH:MM:SS)"}), 400
+            return jsonify({"msg": "Invalid lastSync format. Use ISO8601"}), 400
 
-    # Build filters
     filters = or_(
         and_(Suspect.subnode_id == site_subnode_id, Suspect.distribution_to == 'P'),
         and_(Suspect.subnode_id.in_(district_subnode_ids), Suspect.distribution_to == 'D'),
@@ -276,5 +271,94 @@ def get_suspects_by_site(site_id):
         query = query.filter(Suspect.updated_at > last_sync)
 
     suspects = query.all()
-
     return jsonify([s.serialize(include_blob=True) for s in suspects]), 200
+
+@suspect_bp.route('/metadata', methods=['GET'])
+def get_suspects_metadata():
+    db.session.expire_all()
+
+    # Current server UTC timestamp
+    server_now_utc = datetime.utcnow().replace(microsecond=0, tzinfo=timezone.utc).isoformat()
+
+    last_sync_str = request.args.get('lastSync')
+    current_app.logger.info(f"last_sync_str: {last_sync_str}")
+    last_sync = None
+
+    if last_sync_str:
+        try:
+            last_sync_str = last_sync_str.strip().replace(" ", "+")
+            last_sync = parse(last_sync_str)
+
+            if last_sync.tzinfo is None:
+                last_sync = last_sync.replace(tzinfo=timezone.utc)
+            else:
+                last_sync = last_sync.astimezone(timezone.utc)
+
+            last_sync = last_sync.replace(microsecond=0)
+            current_app.logger.info(f"last_sync UTC: {last_sync}")
+
+        except Exception as e:
+            current_app.logger.error(f"Failed to parse lastSync: {e}")
+            return jsonify({"msg": "Invalid lastSync format. Use ISO8601"}), 400
+
+    query = Suspect.query
+    if last_sync:
+        query = query.filter(Suspect.updated_at >= last_sync)
+
+    suspects = query.all()
+    result = []
+    for s in suspects:
+        image_urls = []
+        for i in range(6):
+            path = getattr(s, f'file_path{i}' if i > 0 else 'file_path')
+            if path:
+                image_urls.append(path)
+
+        result.append({
+            "Id": s.suspect_id,
+            "Name": f"{s.first_name} {s.last_name}".strip(),
+            "UpdatedAt": s.updated_at.replace(tzinfo=timezone.utc).isoformat(),
+            "ImageUrls": image_urls
+        })
+
+    return jsonify({
+        "last_sync_time": server_now_utc,
+        "suspects": result
+    }), 200
+
+@suspect_bp.route('/images', methods=['POST'])
+def download_suspect_images():
+    data = request.get_json()
+    if not data or 'suspect_id' not in data:
+        return jsonify({"msg": "Missing 'suspect_id' in body"}), 400
+
+    suspect_id = data['suspect_id']
+    suspect = Suspect.query.get(suspect_id)
+
+    if not suspect:
+        return jsonify({"msg": f"Suspect {suspect_id} not found"}), 404
+
+    images = []
+
+    for i in range(6):
+        image_path = getattr(suspect, f'file_path{i}' if i > 0 else 'file_path')
+        if not image_path:
+            continue
+
+        try:
+            current_app.logger.info(f"[download_suspect_images] Requesting image: {image_path}")
+            image_bytes = get_storage().load(image_path)
+            encoded_str = base64.b64encode(image_bytes).decode('utf-8')
+            current_app.logger.info(f"[download_suspect_images] Successfully read {image_path} ({len(image_bytes)} bytes)")
+            images.append({
+                "image_path": image_path,
+                "base64": encoded_str
+            })
+        except Exception as e:
+            current_app.logger.warning(f"[download_suspect_images] Failed to read {image_path}: {e}")
+            images.append({
+                "image_path": image_path,
+                "base64": None
+            })
+
+    return jsonify({"images": images}), 200
