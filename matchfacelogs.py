@@ -188,7 +188,8 @@ def create_matchfacelog():
             suspect=data.get('suspect'),
             distance=data['distance'],
             created_date=data.get('createdDate'),
-            framebase64=data.get('frameBase64')  # keep a copy
+            framebase64=data.get('frameBase64'),
+            site_id=data.get('siteId')
         )
         db.session.add(log)
         db.session.flush()  # so log.id is available if needed
@@ -198,7 +199,7 @@ def create_matchfacelog():
         
             # 2) Dispatch via service (handles Notification creation internally)
         try:
-            dispatched_count = dispatch_notification(log.id,frame_base64)
+            dispatched_count = dispatch_notification(log.id,frame_base64,data.get('siteId'))
             #return jsonify({'status': 'success', 'dispatched': dispatched_count}), 200
         except Exception as e1:
             current_app.logger.error(f"Failed to send notification: {e1}")

@@ -197,10 +197,12 @@ class Matchfacelog(db.Model):
     suspect = db.Column(db.Text, nullable=True)
     distance = db.Column(db.Float, nullable=False)
     created_date = db.Column(db.DateTime, nullable=False)
-    framebase64 = db.Column(db.Text, nullable=True) 
+    framebase64 = db.Column(db.Text, nullable=True)
+    site_id = db.Column(db.Integer, db.ForeignKey('sites.id'), nullable=True)
 
     cctv = db.relationship('CCTV', backref=db.backref('match_logs', lazy=True))
     suspect_ref = db.relationship('Suspect', backref=db.backref('match_logs', lazy=True), foreign_keys=[suspect_id])
+    site = db.relationship('Site', backref=db.backref('match_logs', lazy=True))
 
     def serialize(self):
         return {
@@ -213,6 +215,7 @@ class Matchfacelog(db.Model):
             'distance': self.distance,
             'created_date': self.created_date,
             'framebase64': self.framebase64,
+            'site_id': self.site_id
         }
 
 class Notification(db.Model):

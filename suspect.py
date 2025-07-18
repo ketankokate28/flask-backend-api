@@ -281,9 +281,15 @@ def get_suspects_metadata():
     server_now_utc = datetime.utcnow().replace(microsecond=0, tzinfo=timezone.utc).isoformat()
 
     last_sync_str = request.args.get('lastSync')
-    current_app.logger.info(f"last_sync_str: {last_sync_str}")
-    last_sync = None
+    site_id_str = request.args.get('siteId')  # New param
 
+    current_app.logger.info(f"last_sync_str: {last_sync_str}")
+    current_app.logger.info(f"site_id_str: {site_id_str}")
+
+    last_sync = None
+    site_id = None
+
+    # Parse lastSync
     if last_sync_str:
         try:
             last_sync_str = last_sync_str.strip().replace(" ", "+")
@@ -301,7 +307,57 @@ def get_suspects_metadata():
             current_app.logger.error(f"Failed to parse lastSync: {e}")
             return jsonify({"msg": "Invalid lastSync format. Use ISO8601"}), 400
 
+    # Parse siteId
+    if site_id_str:
+        try:
+            site_id = int(site_id_str)
+            if site_id <= 0:
+                raise ValueError("siteId must be positive")
+            current_app.logger.info(f"site_id: {site_id}")
+        except Exception as e:
+            current_app.logger.error(f"Invalid siteId: {e}")
+            return jsonify({"msg": "Invalid siteId. Must be a positive integer."}), 400
+
     query = Suspect.query
+
+    if site_id:
+        # Apply distribution_to filtering logic
+        site = Site.query.get(site_id)
+        if not site:
+            return jsonify({"msg": "Site not found"}), 404
+
+        site_subnode_id = site.subnode_id
+        site_subnode = Subnode.query.get(site_subnode_id)
+        if not site_subnode:
+            return jsonify({"msg": "Subnode for site not found"}), 404
+
+        district_node_id = site_subnode.node_id
+        district_node = Node.query.get(district_node_id)
+        if not district_node:
+            return jsonify({"msg": "District node for subnode not found"}), 404
+
+        tenant_id = district_node.tenant_id
+
+        # Build lists of IDs
+        district_subnode_ids = [
+            id for (id,) in Subnode.query.with_entities(Subnode.id).filter_by(node_id=district_node_id).all()
+        ]
+        tenant_node_ids = [
+            id for (id,) in Node.query.with_entities(Node.id).filter_by(tenant_id=tenant_id).all()
+        ]
+        tenant_subnode_ids = [
+            id for (id,) in Subnode.query.with_entities(Subnode.id).filter(Subnode.node_id.in_(tenant_node_ids)).all()
+        ]
+
+        filters = or_(
+            and_(Suspect.subnode_id == site_subnode_id, Suspect.distribution_to == 'P'),
+            and_(Suspect.subnode_id.in_(district_subnode_ids), Suspect.distribution_to == 'D'),
+            and_(Suspect.subnode_id.in_(tenant_subnode_ids), Suspect.distribution_to == 'S'),
+        )
+
+        query = query.filter(filters)
+
+    # lastSync filter
     if last_sync:
         query = query.filter(Suspect.updated_at >= last_sync)
 
@@ -325,6 +381,7 @@ def get_suspects_metadata():
         "last_sync_time": server_now_utc,
         "suspects": result
     }), 200
+
 
 @suspect_bp.route('/images', methods=['POST'])
 def download_suspect_images():

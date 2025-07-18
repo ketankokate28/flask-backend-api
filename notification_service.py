@@ -1,8 +1,11 @@
+import base64
+from io import BytesIO
 import logging
 from datetime import datetime
 import yagmail
 from twilio.rest import Client
 from sqlalchemy import asc
+from pathlib import Path
 
 from config import (
     email_sender,
@@ -27,6 +30,8 @@ from models import (
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+TEMP_FOLDER = Path(__file__).parent / 'temp_email_attachments'
+TEMP_FOLDER.mkdir(exist_ok=True)
 
 
 def load_user_call_tree(channel: str, subnode_id: int):
@@ -72,7 +77,6 @@ def _record_recipient(notification_id, user_id, channel, status):
     )
     db.session.add(nr)
 
-
 def _send_email(user, notification, suspect_name, suspect_descr,
                 cctv_name, cctv_descr, site_name,
                 subnode_name, subnode_state, subnode_district,
@@ -94,20 +98,48 @@ def _send_email(user, notification, suspect_name, suspect_descr,
           <p><strong>Node:</strong> {node_name}</p>
           <p><strong>Tenant:</strong> {tenant_name}</p>
           <p><strong>Suspect Details:</strong> {suspect_descr}</p>
-          <p><strong>Frame:</strong> {frame_path}</p>
           <p><strong>Time:</strong> {timestamp}</p>
         </div>
       </body>
     </html>
     """
+
+    attachment_path = None
     try:
         yag = yagmail.SMTP(email_sender, email_password)
-        yag.send(to=user.email, subject=subject, contents=[html_body, frame_path])
+
+        # Decode base64 and write to temp file
+        binary_data = base64.b64decode(frame_path)
+        filename = f"{suspect_name.replace(' ', '_')}_{int(datetime.utcnow().timestamp())}.jpg"
+        attachment_path = TEMP_FOLDER / filename
+
+        with open(attachment_path, 'wb') as f:
+            f.write(binary_data)
+
+        # Send email with attachment
+        yag.send(
+            to=user.email,
+            subject=subject,
+            contents=[
+                html_body,
+                str(attachment_path)
+            ]
+        )
+
         status = 'SENT'
         logger.info(f"Email sent to {user.email}")
     except Exception:
         logger.exception(f"Failed email to {user.email}")
         status = 'FAILED'
+    finally:
+        # Always attempt cleanup
+        if attachment_path and attachment_path.exists():
+            try:
+                attachment_path.unlink()
+                logger.debug(f"Deleted temp attachment: {attachment_path}")
+            except Exception:
+                logger.warning(f"Failed to delete temp attachment: {attachment_path}")
+
     _record_recipient(notification.id, user.id, 'EMAIL', status)
 
 
@@ -137,7 +169,7 @@ def _send_call(user, notification, suspect_name, suspect_descr, cctv_name):
     _record_recipient(notification.id, user.id, 'VOICE', status)
 
 
-def dispatch_notification(matchfacelog_id: int, framebase64: any) -> int:
+def dispatch_notification(matchfacelog_id: int, framebase64: any, siteId: int) -> int:
     """
     1) Ensures a Notification exists for the match event.
     2) Gathers related hierarchy: site, subnode, node, tenant.
