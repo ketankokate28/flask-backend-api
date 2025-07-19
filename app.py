@@ -7,6 +7,7 @@ import police_station
 import auth, users, cctv, suspect, notification, permission, role, matchfacelogs, subnode,site_routes
 from flask_migrate import Migrate
 from notifications.routes import notificationregister_bp
+from camera_config_service import camera_config_bp
 
 #, face_match
 
@@ -52,6 +53,10 @@ def create_app():
     db.init_app(app)
     jwt.init_app(app)
     migrate = Migrate(app, db)  # NEW
+    
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        db.session.remove()
 
     # Register blueprints
     app.register_blueprint(auth.auth_bp,       url_prefix='/api/auth')
@@ -66,6 +71,7 @@ def create_app():
     app.register_blueprint(subnode.subnode_police_station_bp, url_prefix='/api/subnode')
     app.register_blueprint(site_routes.site_bp, url_prefix='/api/sites')
     app.register_blueprint(notificationregister_bp,       url_prefix='/api/notificationregister')
+    app.register_blueprint(camera_config_bp, url_prefix='/api/config')
     #app.register_blueprint(face_match.face_match_bp, url_prefix='/api/face-match')
 
     # Create tables if they don't exist
@@ -77,5 +83,4 @@ def create_app():
 app = create_app()
 
 if __name__ == '__main__':
-    app = create_app()
     app.run(port=5000, debug=True)

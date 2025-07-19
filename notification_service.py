@@ -2,6 +2,8 @@ import base64
 from io import BytesIO
 import logging
 from datetime import datetime
+
+from flask import app
 import yagmail
 from twilio.rest import Client
 from sqlalchemy import asc

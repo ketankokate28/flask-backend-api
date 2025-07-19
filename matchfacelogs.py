@@ -1,3 +1,4 @@
+import threading
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from models import db, Matchfacelog
@@ -188,22 +189,16 @@ def create_matchfacelog():
             suspect=data.get('suspect'),
             distance=data['distance'],
             created_date=data.get('createdDate'),
-            framebase64=data.get('frameBase64'),
+            framebase64=f"{data.get('suspectId')}/{data['frame']}",
             site_id=data.get('siteId')
         )
         db.session.add(log)
-        db.session.flush()  # so log.id is available if needed
+        db.session.commit()
+        db.session.flush()  # ensure log.id is available
 
         # Save the frame image
         frame_base64 = data.get('frameBase64')
-        
-            # 2) Dispatch via service (handles Notification creation internally)
-        try:
-            dispatched_count = dispatch_notification(log.id,frame_base64,data.get('siteId'))
-            #return jsonify({'status': 'success', 'dispatched': dispatched_count}), 200
-        except Exception as e1:
-            current_app.logger.error(f"Failed to send notification: {e1}")
-        
+
         if frame_base64:
             binary_data = base64.b64decode(frame_base64)
 
@@ -228,6 +223,19 @@ def create_matchfacelog():
                 with open(abs_path, 'wb') as f:
                     f.write(binary_data)
                 current_app.logger.info(f"Saved frame to local storage: {abs_path}")
+
+        # Dispatch notifications asynchronously
+        def async_notification(matchfacelog_id, framebase64, siteId):
+            try:
+                dispatched_count = dispatch_notification(matchfacelog_id, framebase64, siteId)
+                current_app.logger.info(f"Notifications dispatched: {dispatched_count}")
+            except Exception as e:
+                current_app.logger.error(f"Notification dispatch failed: {e}")
+
+        threading.Thread(
+            target=async_notification,
+            args=(log.id, frame_base64, data.get('siteId'))
+        ).start()
 
         db.session.commit()
         return jsonify({"message": "MatchFaceLog created", "id": log.id}), 201
